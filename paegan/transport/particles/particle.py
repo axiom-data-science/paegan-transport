@@ -1,3 +1,4 @@
+import calendar
 from shapely.geometry import LineString
 
 class Particle(object):
@@ -271,7 +272,19 @@ class Particle(object):
             # The particle stopped before forcing for all of the model timesteps
             raise ValueError("Particle has less locations than model timesteps")
 
-        
+    def timestep_dump(self):
+        return { "particle"  : self.uid,
+                 "u_vector"  : self.last_u(),
+                 "v_vector"  : self.last_v(),
+                 "w_vector"  : self.last_w(),
+                 "time"      : calendar.timegm(self.location.time.utctimetuple()),
+                 "latitude"  : self.location.latitude,
+                 "longitude" : self.location.longitude,
+                 "depth"     : self.location.depth,
+                 "halted"    : self.halted,
+                 "age"       : self.get_age(units='days') }
+
+
 class LarvaParticle(Particle):
     """
         A particle for larvamap, keeps track of information
@@ -415,6 +428,16 @@ class LarvaParticle(Particle):
 
     def status(self):
         return "settled - %s / dead - %s / halted - %s" % (self.settled, self.dead, self.halted)
+
+    def timestep_dump(self):
+        master = { "temperature" : self.last_temp(),
+                   "salinity"    : self.last_salt(),
+                   "dead"        : self.dead,
+                   "settled"     : self.settled,
+                   "lifestage"   : self.lifestage_index,
+                   "progress"    : (self.lifestage_progress % 1) * 100 }
+        master.update(super(LarvaParticle, self).timestep_dump())
+        return master
 
 class ChemistryParticle(Particle):
     """
