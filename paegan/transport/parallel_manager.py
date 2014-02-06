@@ -4,6 +4,7 @@ import time as timer
 import math
 import traceback
 import Queue
+import logging
 import multiprocessing
 
 import numpy as np
@@ -420,6 +421,9 @@ class DataController(object):
         return "DataController"
 
 
+
+import redis
+
 class ForceParticle(object):
 
     def __str__(self):
@@ -429,7 +433,7 @@ class ForceParticle(object):
                  release_location_centroid, usebathy, useshore, usesurface,
                  get_data, n_run, read_lock, has_read_lock, read_count,
                  point_get, data_request_lock, has_data_request_lock, reverse_distance=None, bathy=None,
-                 shoreline_path=None, shoreline_feature=None, time_method=None, caching=None):
+                 shoreline_path=None, shoreline_feature=None, time_method=None, caching=None, redis_url=None, redis_results_channel=None):
         """
             This is the task/class/object/job that forces an
             individual particle and communicates with the
@@ -463,6 +467,10 @@ class ForceParticle(object):
         if caching is None:
             caching = True
         self.caching = caching
+
+        # Redis for results
+        self.redis_url     = redis_url
+        self.redis_results_channel = redis_results_channel
 
         # Set common variable names
         self.uname = common_variables.get("u", None)
@@ -804,6 +812,12 @@ class ForceParticle(object):
 
     def __call__(self, proc, active):
 
+        # Redis config for results
+        redis_connection = None
+        if self.redis_url is not None:
+            import json
+            redis_connection = redis.from_url(self.redis_url)
+
         self.active = active
 
         if self.usebathy is True:
@@ -905,6 +919,10 @@ class ForceParticle(object):
             # Each timestep, save the particles status and environmental variables.
             # This keep fields such as temp, salt, halted, settled, and dead matched up with the number of timesteps
             self.part.save()
+
+            # If using Redis, send the results
+            if redis_connection is not None:
+                redis_connection.publish(self.redis_results_channel, json.dumps(self.part.timestep_dump()))
 
         self.dataset.closenc()
 
