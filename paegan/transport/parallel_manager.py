@@ -144,7 +144,8 @@ class DataController(object):
             domain[inds[0]:inds[-1]+1, y:y_1, x:x_1] = np.ones((inds[-1]+1-inds[0], y_1-y, x_1-x))
 
         # Update the local variables with remote data
-        logger.debug("Filling cache with: Time - %s:%s, Lat - %s:%s, Lon - %s:%s" % (str(inds[0]), str(inds[-1]+1), str(y), str(y_1), str(x), str(x_1)))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Filling cache with: Time - %s:%s, Lat - %s:%s, Lon - %s:%s" % (str(inds[0]), str(inds[-1]+1), str(y), str(y_1), str(x), str(x_1)))
         for local, remote in zip(localvars, remotevars):
             if len(shape) == 4:
                 local[inds[0]:inds[-1]+1, 0:shape[1], y:y_1, x:x_1] = remote[inds[0]:inds[-1]+1,  0:shape[1], y:y_1, x:x_1]
@@ -490,7 +491,8 @@ class ForceParticle(object):
         if self.caching is False:
             return False
 
-        logger.debug("Checking cache for data availability at %s." % self.part.location.logstring())
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Checking cache for data availability at %s." % self.part.location.logstring())
 
         try:
             # Tell the DataController that we are going to be reading from the file
@@ -503,12 +505,14 @@ class ForceParticle(object):
             # If the point we request contains fill values,
             # we need data
             cached_lookup = self.dataset.get_values('domain', timeinds=[np.asarray([i])], point=self.part.location)
-            logger.debug("Type of result: %s" % type(cached_lookup))
-            logger.debug("Double mean of result: %s" % np.mean(np.mean(cached_lookup)))
-            logger.debug("Type of Double mean of result: %s" % type(np.mean(np.mean(cached_lookup))))
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Type of result: %s" % type(cached_lookup))
+                logger.debug("Double mean of result: %s" % np.mean(np.mean(cached_lookup)))
+                logger.debug("Type of Double mean of result: %s" % type(np.mean(np.mean(cached_lookup))))
             if type(np.mean(np.mean(cached_lookup))) == np.ma.core.MaskedConstant:
                 need = True
-                logger.debug("I NEED data.  Got back: %s" % cached_lookup)
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("I NEED data.  Got back: %s" % cached_lookup)
             else:
                 need = False
                 logger.debug("I DO NOT NEED data")
@@ -887,13 +891,15 @@ class ForceParticle(object):
             for model in self.models:
                 movement = model.move(self.part, u, v, w, modelTimestep[loop_i], temperature=temp, salinity=salt, bathymetry_value=bathymetry_value)
                 newloc = Location4D(latitude=movement['latitude'], longitude=movement['longitude'], depth=movement['depth'], time=newtimes[loop_i+1])
-                logger.debug("%s - moved %.3f meters (horizontally) and %.3f meters (vertically) by %s with data from %s" % (self.part.logstring(), movement['distance'], movement['vertical_distance'], model.__class__.__name__, newtimes[loop_i].isoformat()))
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("%s - moved %.3f meters (horizontally) and %.3f meters (vertically) by %s with data from %s" % (self.part.logstring(), movement['distance'], movement['vertical_distance'], model.__class__.__name__, newtimes[loop_i].isoformat()))
                 if newloc:
                     self.boundary_interaction(particle=self.part, starting=self.part.location, ending=newloc,
                                               distance=movement['distance'], angle=movement['angle'],
                                               azimuth=movement['azimuth'], reverse_azimuth=movement['reverse_azimuth'],
                                               vertical_distance=movement['vertical_distance'], vertical_angle=movement['vertical_angle'])
-                logger.debug("%s - was forced by %s and is now at %s" % (self.part.logstring(), model.__class__.__name__, self.part.location.logstring()))
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("%s - was forced by %s and is now at %s" % (self.part.logstring(), model.__class__.__name__, self.part.location.logstring()))
 
             self.part.note = self.part.outputstring()
             # Each timestep, save the particles status and environmental variables.
@@ -942,7 +948,8 @@ class ForceParticle(object):
                 ending.latitude = resulting_point.latitude
                 ending.longitude = resulting_point.longitude
                 ending.depth = resulting_point.depth
-                logger.debug("%s - hit the shoreline at %s.  Setting location to %s." % (particle.logstring(), hitpoint.logstring(),  ending.logstring()))
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("%s - hit the shoreline at %s.  Setting location to %s." % (particle.logstring(), hitpoint.logstring(),  ending.logstring()))
 
         # bathymetry
         if self.usebathy:
@@ -950,7 +957,8 @@ class ForceParticle(object):
                 bintersect = self._bathymetry.intersect(start_point=starting, end_point=ending)
                 if bintersect:
                     pt = self._bathymetry.react(type='reverse', start_point=starting, end_point=ending)
-                    logger.debug("%s - hit the bottom at %s.  Setting location to %s." % (particle.logstring(), ending.logstring(), pt.logstring()))
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug("%s - hit the bottom at %s.  Setting location to %s." % (particle.logstring(), ending.logstring(), pt.logstring()))
                     ending.latitude = pt.latitude
                     ending.longitude = pt.longitude
                     ending.depth = pt.depth
@@ -958,7 +966,8 @@ class ForceParticle(object):
         # sea-surface
         if self.usesurface:
             if ending.depth > 0:
-                logger.debug("%s - rose out of the water.  Setting depth to 0." % particle.logstring())
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("%s - rose out of the water.  Setting depth to 0." % particle.logstring())
                 ending.depth = 0
 
         particle.location = ending
