@@ -433,7 +433,7 @@ class ForceParticle(object):
                  release_location_centroid, usebathy, useshore, usesurface,
                  get_data, n_run, read_lock, has_read_lock, read_count,
                  point_get, data_request_lock, has_data_request_lock, reverse_distance=None, bathy=None,
-                 shoreline_path=None, shoreline_feature=None, time_method=None, caching=None, redis_url=None, redis_results_channel=None):
+                 shoreline_path=None, shoreline_feature=None, time_method=None, caching=None, redis_url=None, redis_results_channel=None, shoreline_index_buffer=None):
         """
             This is the task/class/object/job that forces an
             individual particle and communicates with the
@@ -462,6 +462,7 @@ class ForceParticle(object):
         self.has_data_request_lock = has_data_request_lock
         self.shoreline_path = shoreline_path
         self.shoreline_feature = shoreline_feature
+        self.shoreline_index_buffer = shoreline_index_buffer or 1
         self.timevar = timevar
 
         if caching is None:
@@ -829,7 +830,7 @@ class ForceParticle(object):
 
         self._shoreline = None
         if self.useshore is True:
-            self._shoreline = Shoreline(path=self.shoreline_path, feature_name=self.shoreline_feature, point=self.release_location_centroid, spatialbuffer=0.25)
+            self._shoreline = Shoreline(path=self.shoreline_path, feature_name=self.shoreline_feature, point=self.release_location_centroid, spatialbuffer=self.shoreline_index_buffer)
             # Make sure we are not starting on land.  Raises exception if we are.
             self._shoreline.intersect(start_point=self.release_location_centroid, end_point=self.release_location_centroid)
 

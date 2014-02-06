@@ -76,6 +76,7 @@ class ModelController(object):
         self.time_method = kwargs.get('time_method', 'interp')
         self.shoreline_path = kwargs.get("shoreline_path", None)
         self.shoreline_feature = kwargs.get("shoreline_feature", None)
+        self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 1)
 
         self.reverse_distance = kwargs.get("reverse_distance", 100)
 
@@ -398,7 +399,8 @@ class ModelController(object):
                                                  time_method=self.time_method,
                                                  caching=caching,
                                                  redis_url=redis_url,
-                                                 redis_results_channel=redis_results_channel)
+                                                 redis_results_channel=redis_results_channel,
+                                                 shoreline_index_buffer=self.shoreline_index_buffer)
                 tasks.put(forcing)
 
             # Create workers for the particles.
