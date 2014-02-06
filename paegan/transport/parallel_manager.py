@@ -49,7 +49,6 @@ class Consumer(multiprocessing.Process):
                 try:
                     answer = (1, next_task(self.name, self.active))
                 except Exception:
-                    exc_type, exc_value, exc_traceback = sys.exc_info()
                     logger.exception("Disabling Error")
                     if isinstance(next_task, DataController):
                         answer = (-2, "DataController")
@@ -323,8 +322,7 @@ class DataController(object):
                                 raise
                             except:
                                 logger.warn("DataController failed to get remote data.  Trying again in 20 seconds. %s attemps left." % unicode(max_attempts-current_attempt))
-                                exc_type, exc_value, exc_traceback = sys.exc_info()
-                                logger.warn("Data Access Error: " + repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+                                logger.exception("Data Access Error")
                                 timer.sleep(20)
                                 current_attempt += 1
                             else:
