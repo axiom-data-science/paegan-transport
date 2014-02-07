@@ -11,9 +11,9 @@ from paegan.transport.models.transport import Transport
 from paegan.transport.models.behavior import LarvaBehavior
 from paegan.transport.particles.particle import Particle
 from paegan.location4d import Location4D
-from paegan.transport.exceptions import ModelError, DataControllerError
+from paegan.transport.exceptions import ModelError, BaseDataControllerError
 from paegan.utils.asarandom import AsaRandom
-from paegan.transport.model_controller import ModelController
+from paegan.transport.model_controller import CachingModelController, BaseModelController
 from shapely.geometry import Point, Polygon
 import os
 import pytz
@@ -21,7 +21,7 @@ import logging
 from paegan.logger.easy_logger import EasyLogger
 
 
-class ModelControllerTest(unittest.TestCase):
+class CachingModelControllerTest(unittest.TestCase):
 
     def setUp(self):
         self.start_lat = 60.75
@@ -35,8 +35,8 @@ class ModelControllerTest(unittest.TestCase):
 
         self.log = EasyLogger('testlog.txt', level=logging.PROGRESS)
 
-        self.output_path = "/data/lm/output"
-        self.cache_path = "/data/lm/cache"
+        self.output_path = "/data/lm/tests/output"
+        self.cache_path = "/data/lm/tests/cache"
         self.bathy_file = "/data/lm/bathy/ETOPO1_Bed_g_gmt4.grd"
         self.shoreline_path = "/data/lm/shore"
 
@@ -51,11 +51,14 @@ class ModelControllerTest(unittest.TestCase):
 
         p = Point(self.start_lon, self.start_lat, self.start_depth)
 
-        model = ModelController(geometry=p, start=datetime(2014, 1, 2, 0), step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
-                                models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
+        model = CachingModelController(geometry=p, start=datetime(2014, 1, 2, 0), step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
+                                       models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
 
         cache_path = os.path.join(self.cache_path, "test_run_from_multiple_files_with_cache.nc")
-        model.run("/data/lm/tests/pws_das_2014*.nc", bathy=self.bathy_file, cache=cache_path)
+        model.run("/data/lm/tests/pws_das_2014*.nc", bathy_path=self.bathy_file, output_formats = ['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_multiple_files_without_cache"), cache_path=cache_path)
+
+        self.assertTrue(os.path.exists(cache_path))
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
 
     def test_run_from_multiple_files_without_cache(self):
         self.log.logger.info("**************************************")
@@ -65,24 +68,59 @@ class ModelControllerTest(unittest.TestCase):
 
         p = Point(self.start_lon, self.start_lat, self.start_depth)
 
-        model = ModelController(geometry=p, start=datetime(2014, 1, 2, 0), step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
-                                models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
+        model = BaseModelController(geometry=p, start=datetime(2014, 1, 2, 0), step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
+                                    models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
 
-        model.run("/data/lm/tests/pws_das_2014*.nc", bathy=self.bathy_file, caching=False, output_formats = ['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_multiple_files_without_cache"))
+        model.run("/data/lm/tests/pws_das_2014*.nc", bathy_path=self.bathy_file, output_formats = ['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_multiple_files_without_cache"))
 
-    def test_run_from_point(self):
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
+
+    def test_run_from_dap_with_cache(self):
         self.log.logger.info("**************************************")
-        self.log.logger.info("Running: test_run_from_point")
+        self.log.logger.info("Running: test_run_from_dap_with_cache")
 
         models = [self.transport]
 
         p = Point(self.start_lon, self.start_lat, self.start_depth)
 
-        model = ModelController(geometry=p, start=self.start_time, step=self.time_step, nstep=self.num_steps, npart=self.num_particles, models=models, use_bathymetry=False, use_shoreline=True,
-            time_chunk=10, horiz_chunk=4)
+        model = CachingModelController(geometry=p, start=self.start_time, step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
+                                       models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
 
-        cache_path = os.path.join(self.cache_path, "test_run_from_point.nc")
-        model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", bathy=self.bathy_file, cache=cache_path)
+        cache_path = os.path.join(self.cache_path, "test_run_from_dap_with_cache.nc")
+        model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", bathy_path=self.bathy_file, output_formats = ['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_dap_with_cache"), cache_path=cache_path, remove_cache=False)
+
+        self.assertTrue(os.path.exists(cache_path))
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
+
+    def test_run_from_dap_without_cache(self):
+        self.log.logger.info("**************************************")
+        self.log.logger.info("Running: test_run_from_dap_without_cache")
+
+        models = [self.transport]
+
+        p = Point(self.start_lon, self.start_lat, self.start_depth)
+
+        model = CachingModelController(geometry=p, start=self.start_time, step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
+                                       models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
+
+        model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", bathy_path=self.bathy_file, output_formats = ['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_multiple_files_without_cache"))
+
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
+
+    def test_run_from_polygon(self):
+        self.log.logger.info("**************************************")
+        self.log.logger.info("Running: test_run_from_polygon")
+
+        models = [self.transport]
+
+        p = Point(self.start_lon, self.start_lat, self.start_depth).buffer(0.001)
+
+        model = BaseModelController(geometry=p, start=datetime(2014, 1, 2, 0), step=self.time_step, nstep=self.num_steps, npart=self.num_particles,
+                                    models=models, use_bathymetry=False, use_shoreline=True, time_chunk=10, horiz_chunk=4)
+
+        model.run("/data/lm/tests/pws_das_2014*.nc", bathy_path=self.bathy_file, output_formats=['NetCDF'], output_path=os.path.join(self.output_path, "test_run_from_polygon"), remove_cache=False)
+
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
     """
     def test_run_from_point_with_wfs(self):
         self.log.logger.info("**************************************")
@@ -98,19 +136,7 @@ class ModelControllerTest(unittest.TestCase):
         cache_path = os.path.join(self.cache_path, "test_run_from_point.nc")
         model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", bathy=self.bathy_file, cache=cache_path)
 
-    def test_run_from_polygon(self):
-        self.log.logger.info("**************************************")
-        self.log.logger.info("Running: test_run_from_polygon")
-
-        models = [self.transport]
-
-        poly = Point(self.start_lon, self.start_lat, self.start_depth).buffer(0.001)
-
-        model = ModelController(geometry=poly, start=self.start_time, step=self.time_step, nstep=self.num_steps, npart=self.num_particles, models=models, use_bathymetry=False, use_shoreline=True,
-            time_chunk=10, horiz_chunk=4)
-
-        cache_path = os.path.join(os.path.dirname(__file__), "..", "paegan/transport/_cache/test_run_from_polygon.nc")
-        model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", bathy=self.bathy_file, cache=cache_path)
+    
 
     def test_interp(self):
         self.log.logger.info("**************************************")

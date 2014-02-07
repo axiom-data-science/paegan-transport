@@ -1,8 +1,14 @@
 class ModelError(Exception):
     pass
 
-class DataControllerError(Exception):
+
+class BaseDataControllerError(Exception):
     pass
+
+
+class CachingDataControllerError(Exception):
+    pass
+
 
 class ParticleError(Exception):
     pass

@@ -15,26 +15,28 @@ from paegan.location4d import Location4D
 from paegan.transport.utils.asatransport import AsaTransport
 from paegan.transport.shoreline import Shoreline
 from paegan.transport.bathymetry import Bathymetry
-from paegan.transport.exceptions import DataControllerError
+from paegan.transport.exceptions import CachingDataControllerError
 
 from paegan.cdm.dataset import CommonDataset
 from paegan.cdm.timevar import date2num
+
+from paegan.transport.forcers import BaseForcer
 
 from paegan.logger import logger
 
 
 class Consumer(multiprocessing.Process):
-    def __init__(self, task_queue, result_queue, n_run, nproc_lock, active, get_data, **kwargs):
+    def __init__(self, task_queue, result_queue, n_run, nproc_lock, active=True, get_data=None, **kwargs):
         """
             This is the process class that does all the handling of queued tasks
         """
         multiprocessing.Process.__init__(self, **kwargs)
-        self.task_queue = task_queue
-        self.result_queue = result_queue
-        self.n_run = n_run
-        self.nproc_lock = nproc_lock
-        self.active = active
-        self.get_data = get_data
+        self.task_queue     = task_queue
+        self.result_queue   = result_queue
+        self.n_run          = n_run
+        self.nproc_lock     = nproc_lock
+        self.active         = active
+        self.get_data       = get_data
 
     def run(self):
 
@@ -51,14 +53,14 @@ class Consumer(multiprocessing.Process):
                     answer = (1, next_task(self.name, self.active))
                 except Exception:
                     logger.exception("Disabling Error")
-                    if isinstance(next_task, DataController):
-                        answer = (-2, "DataController")
-                        # Tell the particles that the DataController is releasing file
+                    if isinstance(next_task, CachingDataController):
+                        answer = (-2, "CachingDataController")
+                        # Tell the particles that the CachingDataController is releasing file
                         self.get_data.value = False
                         # The data controller has died, so don't process any more tasks
                         self.active.value = False
-                    elif isinstance(next_task, ForceParticle):
-                        answer = (-1, next_task.part)
+                    elif isinstance(next_task, BaseForcer):
+                        answer = (-1, next_task.particle)
                     else:
                         logger.warn("Strange task raised an exception: %s" % str(next_task.__class__))
                         answer = (None, None)
@@ -72,7 +74,7 @@ class Consumer(multiprocessing.Process):
                     self.task_queue.task_done()
 
 
-class DataController(object):
+class CachingDataController(object):
     def __init__(self, hydrodataset, common_variables, n_run, get_data, write_lock, has_write_lock, read_lock, read_count,
                  time_chunk, horiz_chunk, times, start_time, point_get, start, **kwargs):
         """
@@ -84,7 +86,7 @@ class DataController(object):
         self.caching = kwargs.get("caching", True)
         self.hydrodataset = hydrodataset
         if self.cache_path == self.hydrodataset and self.caching is True:
-            raise DataControllerError("Caching is set to True but the cache path and data path are the same.  Refusing to overwrite the data path.")
+            raise CachingDataControllerError("Caching is set to True but the cache path and data path are the same.  Refusing to overwrite the data path.")
 
         self.n_run = n_run
         self.get_data = get_data
@@ -323,7 +325,7 @@ class DataController(object):
                             except AssertionError:
                                 raise
                             except:
-                                logger.warn("DataController failed to get remote data.  Trying again in 20 seconds. %s attemps left." % unicode(max_attempts-current_attempt))
+                                logger.warn("CachingDataController failed to get remote data.  Trying again in 20 seconds. %s attemps left." % unicode(max_attempts-current_attempt))
                                 logger.exception("Data Access Error")
                                 timer.sleep(20)
                                 current_attempt += 1
@@ -332,7 +334,7 @@ class DataController(object):
 
                         c += 1
                     except (StandardError, AssertionError):
-                        logger.error("DataController failed to get data (first request)")
+                        logger.error("CachingDataController failed to get data (first request)")
                         raise
                     finally:
                         self.local.sync()
@@ -395,14 +397,14 @@ class DataController(object):
                             try:
                                 self.get_remote_data(localvars, remotevars, current_inds, shape)
                             except:
-                                logger.warn("DataController failed to get remote data.  Trying again in 30 seconds")
+                                logger.warn("CachingDataController failed to get remote data.  Trying again in 30 seconds")
                                 timer.sleep(30)
                             else:
                                 break
 
                         c += 1
                     except StandardError:
-                        logger.error("DataController failed to get data (not first request)")
+                        logger.error("CachingDataController failed to get data (not first request)")
                         raise
                     finally:
                         self.local.sync()
@@ -418,576 +420,4 @@ class DataController(object):
 
         self.dataset.closenc()
 
-        return "DataController"
-
-
-
-import redis
-
-class ForceParticle(object):
-
-    def __str__(self):
-        return self.part.__str__()
-
-    def __init__(self, hydrodataset, part, common_variables, timevar, times, start_time, models,
-                 release_location_centroid, usebathy, useshore, usesurface,
-                 get_data, n_run, read_lock, has_read_lock, read_count,
-                 point_get, data_request_lock, has_data_request_lock, reverse_distance=None, bathy=None,
-                 shoreline_path=None, shoreline_feature=None, time_method=None, caching=None, redis_url=None, redis_results_channel=None, shoreline_index_buffer=None):
-        """
-            This is the task/class/object/job that forces an
-            individual particle and communicates with the
-            other particles and data controller for local
-            cache updates
-        """
-        assert "hydrodataset" is not None
-        self.hydrodataset = hydrodataset
-        self.bathy = bathy
-        self.common_variables = common_variables
-        self.release_location_centroid = release_location_centroid
-        self.part = part
-        self.times = times
-        self.start_time = start_time
-        self.models = models
-        self.usebathy = usebathy
-        self.useshore = useshore
-        self.usesurface = usesurface
-        self.get_data = get_data
-        self.n_run = n_run
-        self.read_lock = read_lock
-        self.has_read_lock = has_read_lock
-        self.read_count = read_count
-        self.point_get = point_get
-        self.data_request_lock = data_request_lock
-        self.has_data_request_lock = has_data_request_lock
-        self.shoreline_path = shoreline_path
-        self.shoreline_feature = shoreline_feature
-        self.shoreline_index_buffer = shoreline_index_buffer or 1
-        self.timevar = timevar
-
-        if caching is None:
-            caching = True
-        self.caching = caching
-
-        # Redis for results
-        self.redis_url     = redis_url
-        self.redis_results_channel = redis_results_channel
-
-        # Set common variable names
-        self.uname = common_variables.get("u", None)
-        self.vname = common_variables.get("v", None)
-        self.wname = common_variables.get("w", None)
-        self.temp_name = common_variables.get("temp", None)
-        self.salt_name = common_variables.get("salt", None)
-        self.xname = common_variables.get("x", None)
-        self.yname = common_variables.get("y", None)
-        self.zname = common_variables.get("z", None)
-        self.tname = common_variables.get("time", None)
-
-        self.reverse_distance = reverse_distance
-
-        if time_method is None:
-            time_method = 'interp'
-        self.time_method = time_method
-
-    def need_data(self, i):
-        """
-            Method to test if cache contains the data that
-            the particle needs
-        """
-
-        # If we are not caching, we always grab data from the raw source
-        if self.caching is False:
-            return False
-
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug("Checking cache for data availability at %s." % self.part.location.logstring())
-
-        try:
-            # Tell the DataController that we are going to be reading from the file
-            with self.read_lock:
-                self.read_count.value += 1
-                self.has_read_lock.append(os.getpid())
-
-            self.dataset.opennc()
-            # Test if the cache has the data we need
-            # If the point we request contains fill values,
-            # we need data
-            cached_lookup = self.dataset.get_values('domain', timeinds=[np.asarray([i])], point=self.part.location)
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("Type of result: %s" % type(cached_lookup))
-                logger.debug("Double mean of result: %s" % np.mean(np.mean(cached_lookup)))
-                logger.debug("Type of Double mean of result: %s" % type(np.mean(np.mean(cached_lookup))))
-            if type(np.mean(np.mean(cached_lookup))) == np.ma.core.MaskedConstant:
-                need = True
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("I NEED data.  Got back: %s" % cached_lookup)
-            else:
-                need = False
-                logger.debug("I DO NOT NEED data")
-        except StandardError:
-            # If the time index doesnt even exist, we need
-            need = True
-            logger.debug("I NEED data (no time index exists in cache)")
-        finally:
-            self.dataset.closenc()
-            with self.read_lock:
-                self.read_count.value -= 1
-                self.has_read_lock.remove(os.getpid())
-
-        return need  # return true if need data or false if dont
-
-    def linterp(self, setx, sety, x):
-        """
-            Linear interp of model data values between time steps
-        """
-        if math.isnan(sety[0]) or math.isnan(setx[0]):
-            return np.nan
-        #if math.isnan(sety[0]):
-        #    sety[0] = 0.
-        #if math.isnan(sety[1]):
-        #    sety[1] = 0.
-        return sety[0] + (x - setx[0]) * ( (sety[1]-sety[0]) / (setx[1]-setx[0]) )
-
-    def data_interp(self, i, currenttime):
-        """
-            Method to streamline request for data from cache,
-            Uses linear interpolation bewtween timesteps to
-            get u,v,w,temp,salt
-        """
-        if self.active.value is True:
-            while self.get_data.value is True:
-                logger.debug("Waiting for DataController to release cache file so I can read from it...")
-                timer.sleep(2)
-                pass
-
-        if self.need_data(i+1):
-            # Acquire lock for asking for data
-            self.data_request_lock.acquire()
-            self.has_data_request_lock.value = os.getpid()
-            try:
-                # Do I still need data?
-                if self.need_data(i+1):
-
-                    # Tell the DataController that we are going to be reading from the file
-                    with self.read_lock:
-                        self.read_count.value += 1
-                        self.has_read_lock.append(os.getpid())
-
-                    # Open netcdf file on disk from commondataset
-                    self.dataset.opennc()
-                    # Get the indices for the current particle location
-                    indices = self.dataset.get_indices('u', timeinds=[np.asarray([i-1])], point=self.part.location )
-                    self.dataset.closenc()
-
-                    with self.read_lock:
-                        self.read_count.value -= 1
-                        self.has_read_lock.remove(os.getpid())
-
-                    # Override the time
-                    # get the current time index data
-                    self.point_get.value = [indices[0] + 1, indices[-2], indices[-1]]
-                    # Request that the data controller update the cache
-                    self.get_data.value = True
-                    # Wait until the data controller is done
-                    if self.active.value is True:
-                        while self.get_data.value is True:
-                            logger.debug("Waiting for DataController to update cache with the CURRENT time index")
-                            timer.sleep(2)
-                            pass
-
-                    # Do we still need to get the next timestep?
-                    if self.need_data(i+1):
-                        # get the next time index data
-                        self.point_get.value = [indices[0] + 2, indices[-2], indices[-1]]
-                        # Request that the data controller update the cache
-                        self.get_data.value = True
-                        # Wait until the data controller is done
-                        if self.active.value is True:
-                            while self.get_data.value is True:
-                                logger.debug("Waiting for DataController to update cache with the NEXT time index")
-                                timer.sleep(2)
-                                pass
-            except StandardError:
-                logger.warn("Particle failed to request data correctly")
-                raise
-            finally:
-                # Release lock for asking for data
-                self.has_data_request_lock.value = -1
-                self.data_request_lock.release()
-
-        if self.caching is True:
-            # Tell the DataController that we are going to be reading from the file
-            with self.read_lock:
-                self.read_count.value += 1
-                self.has_read_lock.append(os.getpid())
-
-        try:
-            # Open the Cache netCDF file on disk
-            self.dataset.opennc()
-
-            # Grab data at time index closest to particle location
-            u = [np.mean(np.mean(self.dataset.get_values('u', timeinds=[np.asarray([i])], point=self.part.location ))),
-                 np.mean(np.mean(self.dataset.get_values('u', timeinds=[np.asarray([i+1])], point=self.part.location )))]
-            v = [np.mean(np.mean(self.dataset.get_values('v', timeinds=[np.asarray([i])], point=self.part.location ))),
-                 np.mean(np.mean(self.dataset.get_values('v', timeinds=[np.asarray([i+1])], point=self.part.location )))]
-            # if there is vertical velocity inthe dataset, get it
-            if 'w' in self.dataset.nc.variables:
-                w = [np.mean(np.mean(self.dataset.get_values('w', timeinds=[np.asarray([i])], point=self.part.location ))),
-                     np.mean(np.mean(self.dataset.get_values('w', timeinds=[np.asarray([i+1])], point=self.part.location )))]
-            else:
-                w = [0.0, 0.0]
-            # If there is salt and temp in the dataset, get it
-            if self.temp_name is not None and self.salt_name is not None:
-                temp = [np.mean(np.mean(self.dataset.get_values('temp', timeinds=[np.asarray([i])], point=self.part.location ))),
-                        np.mean(np.mean(self.dataset.get_values('temp', timeinds=[np.asarray([i+1])], point=self.part.location )))]
-                salt = [np.mean(np.mean(self.dataset.get_values('salt', timeinds=[np.asarray([i])], point=self.part.location ))),
-                        np.mean(np.mean(self.dataset.get_values('salt', timeinds=[np.asarray([i+1])], point=self.part.location )))]
-
-            # Check for nans that occur in the ocean (happens because
-            # of model and coastline resolution mismatches)
-            if np.isnan(u).any() or np.isnan(v).any() or np.isnan(w).any():
-                # Take the mean of the closest 4 points
-                # If this includes nan which it will, result is nan
-                uarray1 = self.dataset.get_values('u', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                varray1 = self.dataset.get_values('v', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                uarray2 = self.dataset.get_values('u', timeinds=[np.asarray([i+1])], point=self.part.location, num=2)
-                varray2 = self.dataset.get_values('v', timeinds=[np.asarray([i+1])], point=self.part.location, num=2)
-                if 'w' in self.dataset.nc.variables:
-                    warray1 = self.dataset.get_values('w', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    warray2 = self.dataset.get_values('w', timeinds=[np.asarray([i+1])], point=self.part.location, num=2)
-                    w = [warray1.mean(), warray2.mean()]
-                else:
-                    w = [0.0, 0.0]
-
-                if self.temp_name is not None and self.salt_name is not None:
-                    temparray1 = self.dataset.get_values('temp', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    saltarray1 = self.dataset.get_values('salt', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    temparray2 = self.dataset.get_values('temp', timeinds=[np.asarray([i+1])], point=self.part.location, num=2)
-                    saltarray2 = self.dataset.get_values('salt', timeinds=[np.asarray([i+1])], point=self.part.location, num=2)
-                    temp = [temparray1.mean(), temparray2.mean()]
-                    salt = [saltarray1.mean(), saltarray2.mean()]
-                u = [uarray1.mean(), uarray2.mean()]
-                v = [varray1.mean(), varray2.mean()]
-
-            # Linear interp of data between timesteps
-            currenttime = date2num(currenttime)
-            timevar = self.timevar.datenum
-            u = self.linterp(timevar[i:i+2], u, currenttime)
-            v = self.linterp(timevar[i:i+2], v, currenttime)
-            w = self.linterp(timevar[i:i+2], w, currenttime)
-            if self.temp_name is not None and self.salt_name is not None:
-                temp = self.linterp(timevar[i:i+2], temp, currenttime)
-                salt = self.linterp(timevar[i:i+2], salt, currenttime)
-
-            if self.temp_name is None:
-                temp = np.nan
-            if self.salt_name is None:
-                salt = np.nan
-
-        except StandardError:
-            logger.error("Error in data_interp method on ForceParticle")
-            raise
-        finally:
-            # If caching is False, we don't have to close the dataset.  We can stay in read-only mode.
-            if self.caching is True:
-                self.dataset.closenc()
-                with self.read_lock:
-                    self.read_count.value -= 1
-                    self.has_read_lock.remove(os.getpid())
-
-        return u, v, w, temp, salt
-
-    def data_nearest(self, i, currenttime):
-        """
-            Method to streamline request for data from cache,
-            Uses nearest time to get u,v,w,temp,salt
-        """
-        if self.active.value is True:
-            while self.get_data.value is True:
-                logger.debug("Waiting for DataController to release cache file so I can read from it...")
-                timer.sleep(2)
-                pass
-
-        if self.need_data(i):
-            # Acquire lock for asking for data
-            self.data_request_lock.acquire()
-            self.has_data_request_lock.value = os.getpid()
-            try:
-                if self.need_data(i):
-
-                    with self.read_lock:
-                        self.read_count.value += 1
-                        self.has_read_lock.append(os.getpid())
-
-                    # Open netcdf file on disk from commondataset
-                    self.dataset.opennc()
-                    # Get the indices for the current particle location
-                    indices = self.dataset.get_indices('u', timeinds=[np.asarray([i-1])], point=self.part.location )
-                    self.dataset.closenc()
-
-                    with self.read_lock:
-                        self.read_count.value -= 1
-                        self.has_read_lock.remove(os.getpid())
-
-                    # Override the time
-                    self.point_get.value = [indices[0]+1, indices[-2], indices[-1]]
-                    # Request that the data controller update the cache
-                    # DATA CONTOLLER STARTS
-                    self.get_data.value = True
-                    # Wait until the data controller is done
-                    if self.active.value is True:
-                        while self.get_data.value is True:
-                            logger.debug("Waiting for DataController to update cache...")
-                            timer.sleep(2)
-                            pass
-            except StandardError:
-                raise
-            finally:
-                self.has_data_request_lock.value = -1
-                self.data_request_lock.release()
-
-        # Tell the DataController that we are going to be reading from the file
-        if self.caching is True:
-            with self.read_lock:
-                self.read_count.value += 1
-                self.has_read_lock.append(os.getpid())
-
-        try:
-            # Open netcdf file on disk from commondataset
-            self.dataset.opennc()
-
-            # Grab data at time index closest to particle location
-            u = np.mean(np.mean(self.dataset.get_values('u', timeinds=[np.asarray([i])], point=self.part.location )))
-            v = np.mean(np.mean(self.dataset.get_values('v', timeinds=[np.asarray([i])], point=self.part.location )))
-            # if there is vertical velocity inthe dataset, get it
-            if 'w' in self.dataset.nc.variables:
-                w = np.mean(np.mean(self.dataset.get_values('w', timeindsf=[np.asarray([i])], point=self.part.location )))
-            else:
-                w = 0.0
-            # If there is salt and temp in the dataset, get it
-            if self.temp_name is not None and self.salt_name is not None:
-                temp = np.mean(np.mean(self.dataset.get_values('temp', timeinds=[np.asarray([i])], point=self.part.location )))
-                salt = np.mean(np.mean(self.dataset.get_values('salt', timeinds=[np.asarray([i])], point=self.part.location )))
-
-            # Check for nans that occur in the ocean (happens because
-            # of model and coastline resolution mismatches)
-            if np.isnan(u).any() or np.isnan(v).any() or np.isnan(w).any():
-                # Take the mean of the closest 4 points
-                # If this includes nan which it will, result is nan
-                uarray1 = self.dataset.get_values('u', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                varray1 = self.dataset.get_values('v', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                if 'w' in self.dataset.nc.variables:
-                    warray1 = self.dataset.get_values('w', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    w = warray1.mean()
-                else:
-                    w = 0.0
-
-                if self.temp_name is not None and self.salt_name is not None:
-                    temparray1 = self.dataset.get_values('temp', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    saltarray1 = self.dataset.get_values('salt', timeinds=[np.asarray([i])], point=self.part.location, num=2)
-                    temp = temparray1.mean()
-                    salt = saltarray1.mean()
-                u = uarray1.mean()
-                v = varray1.mean()
-
-            if self.temp_name is None:
-                temp = np.nan
-            if self.salt_name is None:
-                salt = np.nan
-
-            #logger.info(self.dataset.get_xyind_from_point('u', self.part.location, num=1))
-
-        except StandardError:
-            logger.error("Error in data_nearest on ForceParticle")
-            raise
-        finally:
-            # If caching is False, we don't have to close the dataset.  We are in read only anyway.
-            if self.caching is True:
-                self.dataset.closenc()
-                with self.read_lock:
-                    self.read_count.value -= 1
-                    self.has_read_lock.remove(os.getpid())
-
-        return u, v, w, temp, salt
-
-    def __call__(self, proc, active):
-
-        # Redis config for results
-        redis_connection = None
-        if self.redis_url is not None:
-            import json
-            redis_connection = redis.from_url(self.redis_url)
-
-        self.active = active
-
-        if self.usebathy is True:
-            try:
-                self._bathymetry = Bathymetry(file=self.bathy)
-            except Exception:
-                logger.exception("Could not load Bathymetry file: %s, using no Bathymetry for this run!" % self.bathy)
-                self.usebathy = False
-
-        self._shoreline = None
-        if self.useshore is True:
-            self._shoreline = Shoreline(path=self.shoreline_path, feature_name=self.shoreline_feature, point=self.release_location_centroid, spatialbuffer=self.shoreline_index_buffer)
-            # Make sure we are not starting on land.  Raises exception if we are.
-            self._shoreline.intersect(start_point=self.release_location_centroid, end_point=self.release_location_centroid)
-
-        if self.active.value is True:
-            while self.get_data.value is True:
-                logger.info("Waiting for DataController to start...")
-                timer.sleep(5)
-                pass
-
-        # Initialize commondataset of local cache, then
-        # close the related netcdf file
-        try:
-            if self.caching is True:
-                with self.read_lock:
-                    self.read_count.value += 1
-                    self.has_read_lock.append(os.getpid())
-            self.dataset = CommonDataset.open(self.hydrodataset)
-            self.dataset.closenc()
-        except StandardError:
-            logger.warn("No source dataset: %s.  Particle exiting" % self.hydrodataset)
-            raise
-        finally:
-            if self.caching is True:
-                with self.read_lock:
-                    self.read_count.value -= 1
-                    self.has_read_lock.remove(os.getpid())
-
-        # Calculate datetime at every timestep
-        modelTimestep, newtimes = AsaTransport.get_time_objects_from_model_timesteps(self.times, start=self.start_time)
-
-        if self.time_method == 'interp':
-            time_indexs = self.timevar.nearest_index(newtimes, select='before')
-        elif self.time_method == 'nearest':
-            time_indexs = self.timevar.nearest_index(newtimes)
-        else:
-            logger.warn("Method for computing u,v,w,temp,salt not supported!")
-        try:
-            assert len(newtimes) == len(time_indexs)
-        except AssertionError:
-            logger.error("Time indexes are messed up. Need to have equal datetime and time indexes")
-            raise
-
-        # loop over timesteps
-        # We don't loop over the last time_index because
-        # we need to query in the time_index and set the particle's
-        # location as the 'newtime' object.
-        for loop_i, i in enumerate(time_indexs[0:-1]):
-
-            if self.active.value is False:
-                raise ValueError("Particle exiting due to Failure.")
-
-            newloc = None
-
-            # Get the variable data required by the models
-            if self.time_method == 'nearest':
-                u, v, w, temp, salt = self.data_nearest(i, newtimes[loop_i])
-            elif self.time_method == 'interp':
-                u, v, w, temp, salt = self.data_interp(i, newtimes[loop_i])
-            else:
-                logger.warn("Method for computing u,v,w,temp,salt is unknown. Only 'nearest' and 'interp' are supported.")
-
-            # Get the bathy value at the particles location
-            if self.usebathy is True:
-                bathymetry_value = self._bathymetry.get_depth(self.part.location)
-            else:
-                bathymetry_value = -999999999999999
-
-            # Age the particle by the modelTimestep (seconds)
-            # 'Age' meaning the amount of time it has been forced.
-            self.part.age(seconds=modelTimestep[loop_i])
-
-            # loop over models - sort these in the order you want them to run
-            for model in self.models:
-                movement = model.move(self.part, u, v, w, modelTimestep[loop_i], temperature=temp, salinity=salt, bathymetry_value=bathymetry_value)
-                newloc = Location4D(latitude=movement['latitude'], longitude=movement['longitude'], depth=movement['depth'], time=newtimes[loop_i+1])
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s - moved %.3f meters (horizontally) and %.3f meters (vertically) by %s with data from %s" % (self.part.logstring(), movement['distance'], movement['vertical_distance'], model.__class__.__name__, newtimes[loop_i].isoformat()))
-                if newloc:
-                    self.boundary_interaction(particle=self.part, starting=self.part.location, ending=newloc,
-                                              distance=movement['distance'], angle=movement['angle'],
-                                              azimuth=movement['azimuth'], reverse_azimuth=movement['reverse_azimuth'],
-                                              vertical_distance=movement['vertical_distance'], vertical_angle=movement['vertical_angle'])
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s - was forced by %s and is now at %s" % (self.part.logstring(), model.__class__.__name__, self.part.location.logstring()))
-
-            self.part.note = self.part.outputstring()
-            # Each timestep, save the particles status and environmental variables.
-            # This keep fields such as temp, salt, halted, settled, and dead matched up with the number of timesteps
-            self.part.save()
-
-            # If using Redis, send the results
-            if redis_connection is not None:
-                redis_connection.publish(self.redis_results_channel, json.dumps(self.part.timestep_dump()))
-
-        self.dataset.closenc()
-
-        # We won't pull data for the last entry in locations, but we need to populate it with fill data.
-        self.part.fill_environment_gap()
-
-        if self.usebathy is True:
-            self._bathymetry.close()
-
-        if self.useshore is True:
-            self._shoreline.close()
-
-        return self.part
-
-    def boundary_interaction(self, **kwargs):
-        """
-            Returns a list of Location4D objects
-        """
-        particle = kwargs.pop('particle')
-        starting = kwargs.pop('starting')
-        ending = kwargs.pop('ending')
-
-        # shoreline
-        if self.useshore:
-            intersection_point = self._shoreline.intersect(start_point=starting.point, end_point=ending.point)
-            if intersection_point:
-                # Set the intersection point.
-                hitpoint = Location4D(point=intersection_point['point'], time=starting.time + (ending.time - starting.time))
-                particle.location = hitpoint
-
-                # This relies on the shoreline to put the particle in water and not on shore.
-                resulting_point = self._shoreline.react(start_point=starting,
-                                                        end_point=ending,
-                                                        hit_point=hitpoint,
-                                                        reverse_distance=self.reverse_distance,
-                                                        feature=intersection_point['feature'],
-                                                        distance=kwargs.get('distance'),
-                                                        angle=kwargs.get('angle'),
-                                                        azimuth=kwargs.get('azimuth'),
-                                                        reverse_azimuth=kwargs.get('reverse_azimuth'))
-                ending.latitude = resulting_point.latitude
-                ending.longitude = resulting_point.longitude
-                ending.depth = resulting_point.depth
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s - hit the shoreline at %s.  Setting location to %s." % (particle.logstring(), hitpoint.logstring(),  ending.logstring()))
-
-        # bathymetry
-        if self.usebathy:
-            if not particle.settled:
-                bintersect = self._bathymetry.intersect(start_point=starting, end_point=ending)
-                if bintersect:
-                    pt = self._bathymetry.react(type='reverse', start_point=starting, end_point=ending)
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug("%s - hit the bottom at %s.  Setting location to %s." % (particle.logstring(), ending.logstring(), pt.logstring()))
-                    ending.latitude = pt.latitude
-                    ending.longitude = pt.longitude
-                    ending.depth = pt.depth
-
-        # sea-surface
-        if self.usesurface:
-            if ending.depth > 0:
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s - rose out of the water.  Setting depth to 0." % particle.logstring())
-                ending.depth = 0
-
-        particle.location = ending
-        return
+        return "CachingDataController"

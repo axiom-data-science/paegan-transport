@@ -36,3 +36,6 @@ nosetests.xml
 
 # For distutils
 paegan_transport.egg-info/*
+
+*_cache
+*_output
