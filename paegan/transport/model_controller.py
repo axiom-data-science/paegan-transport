@@ -44,16 +44,23 @@ class BaseModelController(object):
             * depth (meters) default 0
         """
 
-        # Dataset
-        self._dataset = None
-
-        # Defaults
+        # Shoreline
         self._use_shoreline  = kwargs.pop('use_shoreline', True)
+        self.shoreline_path         = kwargs.get("shoreline_path", None)
+        self.shoreline_feature      = kwargs.get("shoreline_feature", None)
+        self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 0.25)
+        self.reverse_distance       = kwargs.get("reverse_distance", 100)
+
+        # Bathy
         self._use_bathymetry = kwargs.pop('use_bathymetry', True)
         self.bathy_path      = kwargs.get("bathy_path", None)
+
+        # SeaSurface
         self._use_seasurface = kwargs.pop('use_seasurface', True)
+
         self._depth          = kwargs.pop('depth', 0)
         self._npart          = kwargs.pop('npart', 1)
+        self._step           = kwargs.pop('step', 3600)
         self.start           = kwargs.get('start', None)
         if self.start is None:
             raise TypeError("must provide a start time to run the model")
@@ -63,16 +70,15 @@ class BaseModelController(object):
             self.start = self.start.replace(tzinfo=pytz.utc)
         self.start = self.start.astimezone(pytz.utc)
 
-        self._step   = kwargs.pop('step', 3600)
         self._models = kwargs.pop('models', None)
         self._dirty  = True
 
         self.particles              = []
-        self.time_method            = kwargs.get('time_method', 'interp')
-        self.shoreline_path         = kwargs.get("shoreline_path", None)
-        self.shoreline_feature      = kwargs.get("shoreline_feature", None)
-        self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 0.25)
-        self.reverse_distance       = kwargs.get("reverse_distance", 100)
+        self.time_method            = kwargs.get('time_method', 'interp').lower()
+        try:
+            assert "interp" == self.time_method or "nearest" == self.time_method
+        except:
+            raise TypeError("Not a recognized 'time_method' parameter.  Only 'nearest' or 'interp' are allowed.")
 
         # The model timesteps in datetime objects
         self.datetimes = []
