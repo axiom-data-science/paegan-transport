@@ -204,29 +204,9 @@ class BaseModelController(object):
                             self.tasks.task_done()
 
                             # Start a new Consumer.  It will exit if there are no tasks available.
-                            np = Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, self.get_data, name=p.name)
+                            np = Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, None, name=p.name)
                             new_procs.append(np)
                             old_procs.append(p)
-
-                            # Release any locks the PID had
-                            if p.pid in self.has_read_lock:
-                                with self.read_lock:
-                                    self.read_count.value -= 1
-                                    self.has_read_lock.remove(p.pid)
-
-                            if self.has_data_request_lock.value == p.pid:
-                                self.has_data_request_lock.value = -1
-                                try:
-                                    self.data_request_lock.release()
-                                except:
-                                    pass
-
-                            if self.has_write_lock.value == p.pid:
-                                self.has_write_lock.value = -1
-                                try:
-                                    self.write_lock.release()
-                                except:
-                                    pass
 
                     for p in old_procs:
                         try:
