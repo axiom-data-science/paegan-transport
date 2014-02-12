@@ -50,6 +50,7 @@ class BaseModelController(object):
         # Defaults
         self._use_shoreline  = kwargs.pop('use_shoreline', True)
         self._use_bathymetry = kwargs.pop('use_bathymetry', True)
+        self.bathy_path      = kwargs.get("bathy_path", None)
         self._use_seasurface = kwargs.pop('use_seasurface', True)
         self._depth          = kwargs.pop('depth', 0)
         self._npart          = kwargs.pop('npart', 1)
@@ -308,7 +309,6 @@ class BaseModelController(object):
 
     def setup_run(self, **kwargs):
 
-        self.bathy_path = kwargs.get("bathy_path", None)
 
         logger.setLevel(logging.PROGRESS)
 
