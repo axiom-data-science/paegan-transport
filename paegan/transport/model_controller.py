@@ -450,12 +450,13 @@ class BaseModelController(object):
         logger.info('Cleaning up')
         self.cleanup()
 
-        logger.progress((96, "Exporting results"))
-
         if len(self.particles) > 0:
             # If output_formats and path specified,
             # output particle run data to disk when completed
             if "output_formats" in kwargs:
+
+                logger.progress((96, "Exporting results"))
+
                 # Make sure output_path is also included
                 if kwargs.get("output_path", None) is not None:
                     formats = kwargs.get("output_formats")
