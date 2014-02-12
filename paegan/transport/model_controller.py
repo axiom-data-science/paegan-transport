@@ -13,11 +13,10 @@ from shapely.ops import cascaded_union
 import multiprocessing
 from paegan.transport.parallel_manager import CachingDataController, Consumer
 from paegan.transport.forcers import CachingForcer, BaseForcer
-import os
 import paegan.transport.export as ex
+import os
 import Queue
 import pytz
-
 import logging
 
 from paegan.logger import logger
@@ -201,7 +200,7 @@ class BaseModelController(object):
                             # Do what the Consumer would do if something finished.
                             # Add something to results queue
                             self.results.put((-3, "Zombie"))
-                            # Decrement nproc (CachingDataController exits when this is 0)
+                            # Decrement nproc (Consumer exits when this is 0)
                             with self.nproc_lock:
                                 self.n_run.value = self.n_run.value - 1
 
@@ -315,11 +314,10 @@ class BaseModelController(object):
 
     def setup_run(self, **kwargs):
 
-
         logger.setLevel(logging.PROGRESS)
 
         self.redis_url             = None
-        redis_log_channel     = None
+        redis_log_channel          = None
         self.redis_results_channel = None
         if "redis" in kwargs.get("output_formats", []):
             from paegan.logger.redis_handler import RedisHandler
@@ -403,7 +401,6 @@ class BaseModelController(object):
         except Exception:
             logger.exception("Failed to access dataset %s" % self.hydrodataset)
             raise BaseDataControllerError("Inaccessible Dataset: %s" % self.hydrodataset)
-
         # Query the dataset for common variable names
         # and the time variable.
         logger.debug("Retrieving variable information from dataset")
@@ -487,7 +484,7 @@ class BaseModelController(object):
             else:
                 raise ModelError("Error in the model")
 
-        logger.progress((99, "Model Run Complete"))
+        logger.progress((97, "Model Run Complete"))
         return self.particles
 
     def export(self, folder_path, format=None):

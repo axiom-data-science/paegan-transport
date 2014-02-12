@@ -365,7 +365,6 @@ class ShorelineFile(Shoreline):
 
         """
         spatialbuffer = spatialbuffer or self._spatialbuffer
-
         self._layer.SetSpatialFilter(None)
         self._spatial_query_object = None
         geoms                      = []
@@ -375,6 +374,7 @@ class ShorelineFile(Shoreline):
             geoms = self.get_geoms_for_bounds(self._spatial_query_object.wkt)
 
         self._geoms = []
+
         # The _geoms should be only Polygons, not MultiPolygons
         for element in geoms:
             try:
