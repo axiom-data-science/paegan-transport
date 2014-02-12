@@ -2,13 +2,15 @@ import os
 import glob
 import math
 import zipfile
-from shapely.geometry import MultiPoint, LineString
+from shapely.geometry import MultiPoint, LineString, Point
+from datetime import datetime
 
 # NetCDF
 import netCDF4
+import pytz
 
 # Trackline
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point
 import json
 
 from fiona import collection
@@ -18,6 +20,13 @@ from collections import OrderedDict
 import cPickle as pickle
 
 from paegan.logger import logger
+
+import geojson
+
+try:
+    import tables
+except:
+    pass
 
 
 class Export(object):
@@ -48,6 +57,51 @@ class Trackline(Export):
         f.write(json.dumps(mapping(ls)))
         f.close()
         return filepath
+
+
+class H5Trackline(Export):
+    @classmethod
+    def export(cls, folder, h5_file):
+        with tables.open_file(h5_file, mode="r") as h5:
+            table = h5.root.trajectories.model_results
+            timestamps = sorted(list(set([ x["time"] for x in table.iterrows() ])))
+
+            features = []
+            for ts in timestamps:
+                points = MultiPoint([ Point(x['longitude'], x['latitude']) for x in table.where("""time == %s""" % ts) if x["latitude"] and x["longitude"] ])
+                geo_pt = geojson.Point(points.centroid.coords[0])
+                feat = geojson.Feature(geometry=geo_pt, properties={ "time" : datetime.utcfromtimestamp(ts).replace(tzinfo=pytz.utc).isoformat() })
+                features.append(feat)
+
+            fc = geojson.FeatureCollection(features)
+
+            filepath = os.path.join(folder, "center_trackline.geojson")
+            with open(filepath, "wb") as r:
+                r.write(geojson.dumps(fc))
+
+
+class H5ParticleTracklines(Export):
+    @classmethod
+    def export(cls, folder, h5_file):
+        with tables.open_file(h5_file, mode="r") as h5:
+            table = h5.root.trajectories.model_results
+            particles = sorted(list(set([ x["particle"] for x in table.iterrows() ])))
+
+            features = []
+            for puid in particles:
+                points = [ (x["time"], (x['longitude'], x['latitude'])) for x in table.where("""particle == %s""" % puid) if x["latitude"] and x["longitude"] ]
+
+                geo_ls = geojson.LineString(map(lambda x: x[1], points))
+                times  = map(lambda x: datetime.utcfromtimestamp(x[0]).replace(tzinfo=pytz.utc).isoformat(), points)
+
+                feat = geojson.Feature(geometry=geo_ls, id=puid, properties={ "particle" : puid, "times" : times })
+                features.append(feat)
+
+            fc = geojson.FeatureCollection(features)
+
+            filepath = os.path.join(folder, "particle_tracklines.geojson")
+            with open(filepath, "wb") as r:
+                r.write(geojson.dumps(fc))
 
 
 class GDALShapefile(Export):
