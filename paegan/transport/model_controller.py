@@ -464,7 +464,7 @@ class BaseModelController(object):
                 raise ModelError("Error in the model")
 
         logger.progress((99, "Model Run Complete"))
-        return
+        return self.particles
 
     def export(self, folder_path, format=None):
         """
