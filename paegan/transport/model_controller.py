@@ -415,6 +415,23 @@ class BaseModelController(object):
             logger.exception("Could not locate variables needed to run model: %s" % unicode(self.common_variables))
             raise BaseDataControllerError("A required data variable was not found in %s" % self.hydrodataset)
 
+        model_start = self.timevar.get_dates()[0]
+        model_end   = self.timevar.get_dates()[-1]
+
+        try:
+            assert self.start > model_start
+            assert self.start < model_end
+        except AssertionError:
+            raise BaseDataControllerError("Start time for model (%s) is not available in source dataset (%s/%s)" % (self.datetimes[0], model_start, model_end))
+
+        try:
+            assert self.datetimes[-1] > model_start
+            assert self.datetimes[-1] < model_end
+        except AssertionError:
+            raise BaseDataControllerError("End time for model (%s) is not available in source dataset (%s/%s)" % (self.datetimes[-1], model_start, model_end))
+
+        ds.closenc()
+
     def run(self, hydrodataset, **kwargs):
 
         self.hydrodataset = hydrodataset
