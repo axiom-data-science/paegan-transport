@@ -104,6 +104,30 @@ class H5ParticleTracklines(Export):
                 r.write(geojson.dumps(fc))
 
 
+class H5ParticleMultiPoint(Export):
+    @classmethod
+    def export(cls, folder, h5_file):
+        with tables.open_file(h5_file, mode="r") as h5:
+            table = h5.root.trajectories.model_results
+            particles = sorted(list(set([ x["particle"] for x in table.iterrows() ])))
+
+            features = []
+            for puid in particles:
+                points = [ (x["time"], (x['longitude'], x['latitude'])) for x in table.where("""particle == %s""" % puid) if x["latitude"] and x["longitude"] ]
+
+                geo_mp = geojson.MultiPoint(map(lambda x: x[1], points))
+                times  = map(lambda x: x[0], points)
+
+                feat = geojson.Feature(geometry=geo_mp, id=puid, properties={ "particle" : puid, "time" : times })
+                features.append(feat)
+
+            fc = geojson.FeatureCollection(features)
+
+            filepath = os.path.join(folder, "particle_multipoint.geojson")
+            with open(filepath, "wb") as r:
+                r.write(geojson.dumps(fc))
+
+
 class GDALShapefile(Export):
     @classmethod
     def export(cls, folder, particles, datetimes):
