@@ -67,8 +67,6 @@ class BaseModelController(object):
         self._dirty  = True
 
         self.particles              = []
-        self.time_chunk             = kwargs.get('time_chunk', 10)
-        self.horiz_chunk            = kwargs.get('horiz_chunk', 5)
         self.time_method            = kwargs.get('time_method', 'interp')
         self.shoreline_path         = kwargs.get("shoreline_path", None)
         self.shoreline_feature      = kwargs.get("shoreline_feature", None)
@@ -497,6 +495,11 @@ class BaseModelController(object):
 
 
 class CachingModelController(BaseModelController):
+
+    def __init__(self, **kwargs):
+        super(CachingModelController, self).__init__(**kwargs)
+        self.time_chunk  = kwargs.get('time_chunk', 10)
+        self.horiz_chunk = kwargs.get('horiz_chunk', 5)
 
     def get_number_of_tasks(self):
         # Add the CachingDataController to the number of tasks
