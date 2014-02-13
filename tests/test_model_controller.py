@@ -427,3 +427,46 @@ class CachingModelControllerTest(unittest.TestCase):
         with self.assertRaises(BaseDataControllerError):
             model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
 
+    def test_run_10m_shoreline(self):
+        models = [self.transport]
+
+        p = Point(self.start_lon, self.start_lat)
+
+        model = BaseModelController(geometry=p,
+                                    depth=self.start_depth,
+                                    start=self.start_time,
+                                    step=self.time_step,
+                                    nstep=300,
+                                    npart=2,
+                                    models=models,
+                                    use_bathymetry=False,
+                                    use_shoreline=True,
+                                    shoreline_index_buffer=0.05)
+
+        particles = model.run("/data/lm/datasets/pws/pws_das_2014*.nc")
+        self.assertEquals(len(particles), 2)
+        # Not a caching controller, no cache path should exist
+        self.assertFalse(os.path.exists(self.cache_path))
+
+    def test_run_west_coast_shoreline(self):
+
+        models = [self.transport]
+
+        p = Point(self.start_lon, self.start_lat)
+
+        model = BaseModelController(geometry=p,
+                                    depth=self.start_depth,
+                                    start=self.start_time,
+                                    step=self.time_step,
+                                    nstep=300,
+                                    npart=2,
+                                    models=models,
+                                    use_bathymetry=False,
+                                    use_shoreline=True,
+                                    shoreline_path='/data/lm/shore/westcoast/New_Land_Clean.shp',
+                                    shoreline_index_buffer=0.05)
+
+        particles = model.run("/data/lm/datasets/pws/pws_das_2014*.nc")
+        self.assertEquals(len(particles), 2)
+        # Not a caching controller, no cache path should exist
+        self.assertFalse(os.path.exists(self.cache_path))
