@@ -53,7 +53,7 @@ class BaseForcer(object):
         self.usesurface                 = kwargs.get("usesurface", True)
         self.shoreline_path             = kwargs.get("shoreline_path")
         self.shoreline_feature          = kwargs.get("shoreline_feature", None)
-        self.shoreline_index_buffer     = kwargs.get("shoreline_index_buffer", 0.25)
+        self.shoreline_index_buffer     = kwargs.get("shoreline_index_buffer", 0.1)
         self.time_method                = kwargs.get("time_method", "nearest")
         self.reverse_distance           = kwargs.get("reverse_distance", 500)
 

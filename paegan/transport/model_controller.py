@@ -47,7 +47,7 @@ class BaseModelController(object):
         self._use_shoreline  = kwargs.pop('use_shoreline', True)
         self.shoreline_path         = kwargs.get("shoreline_path", None)
         self.shoreline_feature      = kwargs.get("shoreline_feature", None)
-        self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 0.25)
+        self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 0.1)
         self.reverse_distance       = kwargs.get("reverse_distance", 100)
 
         # Bathy
