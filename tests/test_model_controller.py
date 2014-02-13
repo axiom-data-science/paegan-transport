@@ -1,7 +1,7 @@
 import os
 import unittest
 from pytest import raises
-from datetime import datetime
+from datetime import datetime, timedelta
 from paegan.transport.models.transport import Transport
 from paegan.transport.exceptions import ModelError, BaseDataControllerError
 from paegan.transport.model_controller import CachingModelController, BaseModelController
@@ -361,13 +361,14 @@ class CachingModelControllerTest(unittest.TestCase):
         os.remove(self.cache_path)
         self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
 
-    def test_no_data_for_requested_run(self):
+    def test_no_local_data_for_requested_run(self):
         models = [self.transport]
 
+        # Start is after available time
         model = BaseModelController(latitude=self.start_lat,
                                     longitude=self.start_lon,
                                     depth=self.start_depth,
-                                    start=datetime(2014, 2, 1, 0),
+                                    start=datetime.utcnow() + timedelta(days=30),
                                     step=self.time_step,
                                     nstep=self.num_steps,
                                     npart=self.num_particles,
@@ -377,3 +378,52 @@ class CachingModelControllerTest(unittest.TestCase):
 
         with self.assertRaises(BaseDataControllerError):
             model.run("/data/lm/tests/pws_das_2014*.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
+
+        # Start is OK but Ending is after available time
+        model = BaseModelController(latitude=self.start_lat,
+                                    longitude=self.start_lon,
+                                    depth=self.start_depth,
+                                    start=datetime(2014, 1, 1, 0),
+                                    step=self.time_step,
+                                    nstep=500,
+                                    npart=self.num_particles,
+                                    models=models,
+                                    use_bathymetry=False,
+                                    use_shoreline=False)
+
+        with self.assertRaises(BaseDataControllerError):
+            model.run("/data/lm/tests/pws_das_2014*.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
+
+    def test_no_dap_data_for_requested_run(self):
+        models = [self.transport]
+
+        # Start is after available time
+        model = CachingModelController(latitude=self.start_lat,
+                                       longitude=self.start_lon,
+                                       depth=self.start_depth,
+                                       start=datetime.utcnow() + timedelta(days=30),
+                                       step=self.time_step,
+                                       nstep=self.num_steps,
+                                       npart=self.num_particles,
+                                       models=models,
+                                       use_bathymetry=False,
+                                       use_shoreline=False)
+
+        with self.assertRaises(BaseDataControllerError):
+            model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
+
+        # Start is OK but Ending is after available time
+        model = CachingModelController(latitude=self.start_lat,
+                                       longitude=self.start_lon,
+                                       depth=self.start_depth,
+                                       start=datetime.utcnow() - timedelta(days=2),
+                                       step=self.time_step,
+                                       nstep=500,
+                                       npart=self.num_particles,
+                                       models=models,
+                                       use_bathymetry=False,
+                                       use_shoreline=False)
+
+        with self.assertRaises(BaseDataControllerError):
+            model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
+
