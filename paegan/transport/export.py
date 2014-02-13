@@ -139,21 +139,21 @@ class GDALShapefile(Export):
     def export(cls, folder, particles, datetimes):
 
         shape_schema = {'geometry': 'Point',
-                        'properties': OrderedDict([('Particle', 'int'),
-                                                   ('Date', 'str'),
-                                                   ('Lat', 'float'),
-                                                   ('Lon', 'float'),
-                                                   ('Depth', 'float'),
-                                                   ('Temp', 'float'),
-                                                   ('Salt', 'float'),
-                                                   ('U', 'float'),
-                                                   ('V', 'float'),
-                                                   ('W', 'float'),
-                                                   ('Settled', 'str'),
-                                                   ('Dead', 'str'),
-                                                   ('Halted', 'str'),
-                                                   ('Age', 'float'),
-                                                   ('Notes' , 'str')])}
+                        'properties': OrderedDict([('particle',     'int'),
+                                                   ('date',         'str'),
+                                                   ('latitude',     'float'),
+                                                   ('longitude',    'float'),
+                                                   ('depth',        'float'),
+                                                   ('u_vector',     'float'),
+                                                   ('v_vector',     'float'),
+                                                   ('w_vector',     'float'),
+                                                   ('temp',         'float'),
+                                                   ('salinity',     'float'),
+                                                   ('age',          'float'),
+                                                   ('settled',      'str'),
+                                                   ('dead',         'str'),
+                                                   ('halted',       'str'),
+                                                   ('notes',        'str')])}
         shape_crs = {'no_defs': True, 'ellps': 'WGS84', 'datum': 'WGS84', 'proj': 'longlat'}
 
         if not os.path.exists(folder):
@@ -245,21 +245,21 @@ class GDALShapefile(Export):
 
                 for loc, temp, salt, u, v, w, settled, dead, halted, age, note in zip(normalized_locations, normalized_temps, normalized_salts, normalized_u, normalized_v, normalized_w, normalized_settled, normalized_dead, normalized_halted, normalized_ages, normalized_notes):
                     shape.write({   'geometry': mapping(loc.point),
-                                    'properties': OrderedDict([('Particle', particle.uid),
-                                                               ('Date', unicode(loc.time.isoformat())),
-                                                               ('Lat', float(loc.latitude)),
-                                                               ('Lon', float(loc.longitude)),
-                                                               ('Depth', float(loc.depth)),
-                                                               ('Temp', float(temp)),
-                                                               ('Salt', float(salt)),
-                                                               ('U', float(u)),
-                                                               ('V', float(v)),
-                                                               ('W', float(w)),
-                                                               ('Settled', unicode(settled)),
-                                                               ('Dead', unicode(dead)),
-                                                               ('Halted', unicode(halted)),
-                                                               ('Age', float(age)),
-                                                               ('Notes' , unicode(note))])})
+                                    'properties': OrderedDict([('particle', particle.uid),
+                                                               ('date', unicode(loc.time.isoformat())),
+                                                               ('latitude', float(loc.latitude)),
+                                                               ('longitude', float(loc.longitude)),
+                                                               ('depth', float(loc.depth)),
+                                                               ('temp', float(temp)),
+                                                               ('salinity', float(salt)),
+                                                               ('u_vector', float(u)),
+                                                               ('v_vector', float(v)),
+                                                               ('w_vector', float(w)),
+                                                               ('settled', unicode(settled)),
+                                                               ('dead', unicode(dead)),
+                                                               ('halted', unicode(halted)),
+                                                               ('age', float(age)),
+                                                               ('notes' , unicode(note))])})
 
         # Zip the output
         shpzip = zipfile.ZipFile(os.path.join(folder, "shapefile.shp.zip"), mode='w')
