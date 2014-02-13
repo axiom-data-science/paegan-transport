@@ -1,6 +1,7 @@
 import os
 import time as timer
 import math
+import time
 import json
 import logging
 
@@ -306,6 +307,13 @@ class BaseForcer(object):
             logger.exception("Time indexes are messed up. Need to have equal datetime and time indexes")
             raise
 
+        # Keep track of how much time we spend in each area.
+        tot_boundary_time = 0.
+        tot_model_time    = {}
+        tot_read_data     = 0.
+        for m in self.models:
+            tot_model_time[m.name] = 0.
+
         # loop over timesteps
         # We don't loop over the last time_index because
         # we need to query in the time_index and set the particle's
@@ -317,6 +325,7 @@ class BaseForcer(object):
 
             newloc = None
 
+            st = time.clock()
             # Get the variable data required by the models
             if self.time_method == 'nearest':
                 u, v, w, temp, salt = self.get_nearest_data(i)
@@ -324,6 +333,7 @@ class BaseForcer(object):
                 u, v, w, temp, salt = self.get_linterp_data(i, newtimes[loop_i])
             else:
                 logger.warn("Method for computing u,v,w,temp,salt is unknown. Only 'nearest' and 'interp' are supported.")
+            tot_read_data += (time.clock() - st)
 
             # Get the bathy value at the particles location
             if self.usebathy is True:
@@ -337,15 +347,19 @@ class BaseForcer(object):
 
             # loop over models - sort these in the order you want them to run
             for model in self.models:
+                st = time.clock()
                 movement = model.move(self.particle, u, v, w, modelTimestep[loop_i], temperature=temp, salinity=salt, bathymetry_value=bathymetry_value)
                 newloc = Location4D(latitude=movement['latitude'], longitude=movement['longitude'], depth=movement['depth'], time=newtimes[loop_i+1])
+                tot_model_time[m.name] += (time.clock() - st)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.debug("%s - moved %.3f meters (horizontally) and %.3f meters (vertically) by %s with data from %s" % (self.particle.logstring(), movement['distance'], movement['vertical_distance'], model.__class__.__name__, newtimes[loop_i].isoformat()))
                 if newloc:
+                    st = time.clock()
                     self.boundary_interaction(particle=self.particle, starting=self.particle.location, ending=newloc,
                                               distance=movement['distance'], angle=movement['angle'],
                                               azimuth=movement['azimuth'], reverse_azimuth=movement['reverse_azimuth'],
                                               vertical_distance=movement['vertical_distance'], vertical_angle=movement['vertical_angle'])
+                    tot_boundary_time += (time.clock() - st)
                 if logger.isEnabledFor(logging.DEBUG):
                     logger.debug("%s - was forced by %s and is now at %s" % (self.particle.logstring(), model.__class__.__name__, self.particle.location.logstring()))
 
