@@ -2,7 +2,7 @@ import os
 import glob
 import math
 import zipfile
-from shapely.geometry import MultiPoint, LineString, Point
+from shapely.geometry import MultiPoint, LineString, Point, mapping
 from datetime import datetime
 
 # NetCDF
@@ -10,7 +10,6 @@ import netCDF4
 import pytz
 
 # Trackline
-from shapely.geometry import mapping, Point
 import json
 
 from fiona import collection
