@@ -130,27 +130,39 @@ class Shoreline(object):
 
         # If the current point lies outside of our current shapefile index,
         # re-query the shapefile in a buffer around this point
-        if self._spatial_query_object is None or (self._spatial_query_object and not ls.within(self._spatial_query_object)):
+        #logger.info("Spatial query object: %s" % unicode(self._spatial_query_object))
+
+        st = time.clock()
+        if self._spatial_query_object is None:
+            # Index if we have not
+            self.index(point=spoint)
+        elif self._spatial_query_object.contains(ls):
+            # If we contain the entire linestring, we have nothing more to index
+            pass
+        elif epoint and not self._spatial_query_object.contains(epoint):
+            # If we don't contain the end point, index on that
+            self.index(point=epoint)
+        elif not self._spatial_query_object.contains(spoint):
+            # Index on the start point
             self.index(point=spoint)
 
         for element in self._geoms:
-            prepped_element = prep(element)
 
             # Test if starting on land
-            if prepped_element.contains(spoint):
+            if element.contains(spoint):
                 if epoint is None:
                     # If we only passed in one point, return the intersection is true.
                     return {'point': spoint, 'feature': None}
                 else:
                     # If we are testing a linestring, raise an exception that we started on land.
-                    raise Exception('Starting point on land: %s %s %s' % (spoint.envelope, epoint.envelope, element.envelope))
+                    raise Exception('Intersection starting point on land: %s %s %s' % (spoint.envelope, epoint.envelope, element.envelope))
             else:
                 # If we are just checking a single point, continue looping.
                 if epoint is None:
                     continue
 
             inter = ls.intersection(element)
-            if inter:
+            if not inter.is_empty:
                 # Return the first point in the linestring, and the linestring that it hit
                 if isinstance(inter, MultiLineString):
                     inter = inter.geoms[0]
@@ -261,17 +273,17 @@ class Shoreline(object):
 
         # We tried 16 times and couldn't find a point.  This should totally never happen.
         if count == 16:
-            logger.debug("WOW. Could not find location in water to do shoreline calculation with.  Assuming particle did not move from original location")
+            logger.warn("LOOK: Could not find location in water to do shoreline calculation with.  Assuming particle did not move from original location")
             return start_point
 
         # Keep trying to throw particle back, halfing the distance each time until it is in water.
-        # Only half it 12 times before giving up and returning the point which the particle came from.
+        # Only half it 6 times before giving up and returning the point which the particle came from.
         count = 0
         # Distance amount to half each iteration
         changing_distance = reverse_distance
         new_point = AsaGreatCircle.great_circle(distance=reverse_distance, azimuth=random_azimuth, start_point=hit_point)
         new_loc = Location4D(latitude=new_point['latitude'], longitude=new_point['longitude'], depth=start_point.depth)
-        while self.intersect(start_point=nudge_loc.point, end_point=new_loc.point) and count < 12:
+        while self.intersect(start_point=nudge_loc.point, end_point=new_loc.point) and count < 6:
             changing_distance /= 2
             new_point = AsaGreatCircle.great_circle(distance=changing_distance, azimuth=random_azimuth, start_point=hit_point)
             new_loc = Location4D(latitude=new_point['latitude'], longitude=new_point['longitude'], depth=start_point.depth)
@@ -279,11 +291,13 @@ class Shoreline(object):
 
         # We tried 10 times and the particle was still on shore, return the point the particle started from.
         # No randomization.
-        if count == 12:
-            logger.debug("Could not react particle with shoreline.  Assuming particle did not move from original location")
+        if count == 6:
+            logger.warn("LOOK: Could not react particle with shoreline.  Assuming particle did not move from original location")
             return start_point
 
+        #logger.info("Reaction time: %f" % (time.clock() - st))
         return new_loc
+
 
 class ShorelineFile(Shoreline):
     """
@@ -291,7 +305,7 @@ class ShorelineFile(Shoreline):
     """
     def __init__(self, file=None, path=None, **kwargs):
         """
-            Optional named arguments: 
+            Optional named arguments:
             * file (local path to OGC complient file)
             * path (used instead of file)
 
@@ -302,7 +316,7 @@ class ShorelineFile(Shoreline):
         elif file is not None:
             self._file = os.path.normpath(file)
         else:
-            self._file = os.path.normpath(os.path.join(__file__,"../../resources/shoreline/global/10m_land.shp"))
+            self._file = os.path.normpath(os.path.join(__file__, "../../resources/shoreline/global/10m_land.shp"))
 
         self._source = ogr.Open(self._file, GA_ReadOnly)
         if not self._source:
@@ -472,7 +486,7 @@ class ShorelineWFS(Shoreline):
         geoms                      = []
 
         if point:
-            self._spatial_query_object = point.buffer(spatialbuffer)
+            self._spatial_query_object = prep(point.buffer(spatialbuffer))
             bounds                     = self._spatial_query_object.envelope.wkt
             geoms                      = self.get_geoms_for_bounds(bounds)
 
@@ -481,12 +495,11 @@ class ShorelineWFS(Shoreline):
         for element in geoms:
             try:
                 geom = asShape(element)
-                #print type(geom), isinstance(geom, MultiPolygon)
                 if isinstance(geom, Polygon):
                     self._geoms.append(geom)
                 elif isinstance(geom, MultiPolygon):
                     for poly in geom:
                         self._geoms.append(poly)
-            finally:
+            except:
                 logger.warn("Could not find valid geometry in shoreline element.  Point: %s, Buffer: %s" % (str(point), str(spatialbuffer)))
 
