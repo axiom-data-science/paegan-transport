@@ -8,7 +8,7 @@ import urlparse
 from xml.etree import ElementTree as ET
 from osgeo import ogr
 from gdalconst import *
-from shapely import geometry, wkt
+from shapely import wkt
 from shapely.geometry import asShape, box
 from shapely.geometry import LineString
 from shapely.geometry import Point, Polygon
@@ -21,6 +21,7 @@ from paegan.location4d import Location4D
 from shapely.prepared import prep
 
 from paegan.logger import logger
+
 
 class Shoreline(object):
     """
@@ -62,10 +63,10 @@ class Shoreline(object):
         points = []
         for poly in self._geoms:
             plines = list(poly.exterior.coords)
-            for i in xrange(0,len(plines)-1):
+            for i in xrange(0, len(plines)-1):
                 points.append(Point(plines[i], plines[i+1]))
 
-            points.append(Point(np.nan, np.nan)) # blank point needed to remove crossing of lines
+            points.append(Point(np.nan, np.nan))  # blank point needed to remove crossing of lines
         return LineString(map(lambda x: list(x.coords)[0], points))
 
     def get_capabilities(self):
@@ -182,6 +183,7 @@ class Shoreline(object):
                         break
 
                 return {'point': Point(inter.x, inter.y, 0), 'feature': shore_segment or None}
+
         return None
 
     def react(self, **kwargs):
@@ -191,13 +193,13 @@ class Shoreline(object):
             angle = decimal degrees from 0 (x-axis), couter-clockwise (math style)
         """
         if self._type == "bounce":
-            print "This shoreline type is NOT SUPPORTED and is broken"
+            logger.warn("This shoreline type is NOT SUPPORTED and is broken")
             return self.__bounce(**kwargs)
         elif self._type == "reverse":
             return self.__reverse(**kwargs)
         else:
+            logger.warn("Not reacting to shoreline (sticky with inifinite concentration)")
             return kwargs.get('hit_point')
-            print "Not reacting to shoreline (sticky with inifinite concentration)"
 
     def __bounce(self, **kwargs):
         """
@@ -230,14 +232,14 @@ class Shoreline(object):
         theta = 90 - angle - beta
         bounce_azimuth = AsaMath.math_angle_to_azimuth(angle=2 * theta + angle)
 
-        print "Beta:           " + str(beta)
-        print "Incoming Angle: " + str(angle)
-        print "ShorelineAngle: " + str(theta + angle)
-        print "Bounce Azimuth: " + str(bounce_azimuth)
-        print "Bounce Angle:   " + str(AsaMath.azimuth_to_math_angle(azimuth=bounce_azimuth))
+        #print "Beta:           " + str(beta)
+        #print "Incoming Angle: " + str(angle)
+        #print "ShorelineAngle: " + str(theta + angle)
+        #print "Bounce Azimuth: " + str(bounce_azimuth)
+        #print "Bounce Angle:   " + str(AsaMath.azimuth_to_math_angle(azimuth=bounce_azimuth))
 
         after_distance = distance - AsaGreatCircle.great_distance(start_point=start_point, end_point=hit_point)['distance']
-        
+
         new_point = AsaGreatCircle.great_circle(distance=after_distance, azimuth=bounce_azimuth, start_point=hit_point)
         return Location4D(latitude=new_point['latitude'], longitude=new_point['longitude'], depth=start_point.depth)
 
@@ -246,10 +248,11 @@ class Shoreline(object):
             Reverse particle just off of the shore in the direction that it came in.
             Adds a slight random factor to the distance and angle it is reversed in.
         """
+
+        #st = time.clock()
+
         start_point = kwargs.pop('start_point')
         hit_point = kwargs.pop('hit_point')
-        distance = kwargs.pop('distance')
-        azimuth = kwargs.pop('azimuth')
         reverse_azimuth = kwargs.pop('reverse_azimuth')
         reverse_distance = kwargs.get('reverse_distance', None)
         if reverse_distance is None:

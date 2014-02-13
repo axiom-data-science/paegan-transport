@@ -95,7 +95,7 @@ class BaseForcer(object):
         # shoreline
         if self.useshore:
             intersection_point = self._shoreline.intersect(start_point=starting.point, end_point=ending.point)
-            if intersection_point:
+            if intersection_point is not None:
                 # Set the intersection point.
                 hitpoint = Location4D(point=intersection_point['point'], time=starting.time + (ending.time - starting.time))
                 particle.location = hitpoint

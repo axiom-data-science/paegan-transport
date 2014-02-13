@@ -12,6 +12,7 @@ from datetime import timedelta
 
 from paegan.logger import logger
 
+
 class LifeStage(BaseModel):
 
     def __init__(self, **kwargs):
@@ -73,7 +74,7 @@ class LifeStage(BaseModel):
         temp = kwargs.get('temperature', None)
         salt = kwargs.get('salinity', None)
 
-        logger.debug("Temp: %.4f, Salt: %.4f" %(temp,salt))
+        logger.debug("Temp: %.4f, Salt: %.4f" % (temp, salt))
 
         # IMPORTANT:
         # If we got no data from the model, we are using the last available value stored in the particles!
@@ -133,6 +134,7 @@ class LifeStage(BaseModel):
         result['v'] = v
         result['w'] = w
         return result
+
 
 class DeadLifeStage(LifeStage):
     def __init__(self, **kwargs):
