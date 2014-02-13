@@ -4,9 +4,9 @@ from paegan.transport.shoreline import Shoreline, ShorelineFile, ShorelineWFS
 from shapely.geometry import Point
 from paegan.utils.asagreatcircle import AsaGreatCircle
 from paegan.utils.asamath import AsaMath
-import math
 import time
 import os
+
 
 class ShorelineTest(unittest.TestCase):
 
@@ -34,6 +34,7 @@ class ShorelineTest(unittest.TestCase):
         s = Shoreline()
         assert isinstance(s, ShorelineFile)
 
+
 class ShorelineFileTest(unittest.TestCase):
 
     def make_shoreline(self, **kwargs):
@@ -52,7 +53,7 @@ class ShorelineFileTest(unittest.TestCase):
         s.index(point=p2, spatialbuffer=2)
         s.index(point=p3, spatialbuffer=2)
         print "Reindexing Time: " + str(time.time() - st)
-        
+
     def test_large_shape_reindexing(self):
 
         p = Point(-73.745631, 40.336791)
@@ -152,7 +153,6 @@ class ShorelineFileTest(unittest.TestCase):
 
         self.assertRaises(Exception, s.intersect, start_point=starting, end_point=ending)
 
-
     def test_water_start_water_end_jump_over_land_intersection(self):
         # Starts on water and ends on water, but there is land inbetween
         s = self.make_shoreline()
@@ -207,7 +207,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         starting = Location4D(latitude=39.05, longitude=-75.34, depth=0)
         ending   = Location4D(latitude=38.96, longitude=-75.315, depth=0)
-        
+
         difference = AsaGreatCircle.great_distance(start_point=starting, end_point=ending)
         angle = AsaMath.azimuth_to_math_angle(azimuth=difference['azimuth'])
         distance = difference['distance']
@@ -227,7 +227,7 @@ class ShorelineFileTest(unittest.TestCase):
         # Resulting latitude should be between the startpoint and the intersection point
         assert final_point.latitude > int4d.latitude
         assert final_point.latitude < starting.latitude
-        
+
         # Resulting longitude should be between the startpoint and the intersection point
         assert final_point.longitude < int4d.longitude
         assert final_point.longitude > starting.longitude
@@ -238,7 +238,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         starting = Location4D(latitude=39.05, longitude=-75.34, depth=0)
         ending   = Location4D(latitude=38.96, longitude=-75.315, depth=0)
-        
+
         difference = AsaGreatCircle.great_distance(start_point=starting, end_point=ending)
         angle = AsaMath.azimuth_to_math_angle(azimuth=difference['azimuth'])
         distance = difference['distance']
@@ -265,7 +265,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         starting = Location4D(latitude=39.05, longitude=-75.34, depth=0)
         ending   = Location4D(latitude=38.96, longitude=-75.315, depth=0)
-        
+
         difference = AsaGreatCircle.great_distance(start_point=starting, end_point=ending)
         angle = AsaMath.azimuth_to_math_angle(azimuth=difference['azimuth'])
         distance = difference['distance']
@@ -294,7 +294,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         starting = Location4D(latitude=39.05, longitude=-75.34, depth=0)
         ending   = Location4D(latitude=38.96, longitude=-75.315, depth=0)
-        
+
         difference = AsaGreatCircle.great_distance(start_point=starting, end_point=ending)
         angle = AsaMath.azimuth_to_math_angle(azimuth=difference['azimuth'])
         distance = difference['distance']
@@ -318,11 +318,12 @@ class ShorelineFileTest(unittest.TestCase):
 
     def test_get_capabilities(self):
         s = Shoreline()
-        assert s.get_capabilities() == None
+        assert isinstance(dict, s.get_capabilities())
 
     def test_get_feature_type_info(self):
         s = Shoreline()
-        assert s.get_feature_type_info() == None
+        assert isinstance(dict, s.get_capabilities())
+
 
 class ShorelineWFSTest(ShorelineFileTest):
     def make_shoreline(self, **kwargs):
@@ -344,5 +345,3 @@ class ShorelineWFSTest(ShorelineFileTest):
         ft = s.get_feature_type_info()
 
         assert ft['Title'] == '10m_land_polygons'
-
-
