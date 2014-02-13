@@ -43,7 +43,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_multiple_files_with_cache(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = CachingModelController(geometry=p,
                                        depth=self.start_depth,
@@ -67,7 +67,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_multiple_files_without_cache(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -88,18 +88,18 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_dap_with_cache(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = CachingModelController(geometry=p,
                                        depth=self.start_depth,
                                        start=self.start_time,
                                        step=self.time_step,
-                                       nstep=self.num_steps,
+                                       nstep=200,
                                        npart=self.num_particles,
                                        models=models,
                                        use_bathymetry=False,
-                                       use_shoreline=True,
-                                       time_chunk=10,
+                                       use_shoreline=False,
+                                       time_chunk=24,
                                        horiz_chunk=4)
 
         particles = model.run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", output_formats = ['NetCDF'], output_path=self.output_path, cache_path=self.cache_path, remove_cache=False)
@@ -111,7 +111,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_dap_without_cache(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = CachingModelController(geometry=p,
                                        depth=self.start_depth,
@@ -132,7 +132,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_polygon(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth).buffer(0.001)
+        p = Point(self.start_lon, self.start_lat).buffer(0.001)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -155,7 +155,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_point(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -176,7 +176,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_run_from_point_with_wfs_shoreline(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -199,7 +199,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_time_method_interp(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -221,7 +221,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_time_method_nearest(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         model = BaseModelController(geometry=p,
                                     depth=self.start_depth,
@@ -243,7 +243,7 @@ class CachingModelControllerTest(unittest.TestCase):
     def test_time_method_bad(self):
         models = [self.transport]
 
-        p = Point(self.start_lon, self.start_lat, self.start_depth)
+        p = Point(self.start_lon, self.start_lat)
 
         with self.assertRaises(TypeError):
             BaseModelController(geometry=p,
