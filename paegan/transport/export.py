@@ -75,6 +75,8 @@ class H5Trackline(Export):
 
             fc = geojson.FeatureCollection(features)
 
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             filepath = os.path.join(folder, "center_trackline.geojson")
             with open(filepath, "wb") as r:
                 r.write(geojson.dumps(fc))
@@ -99,6 +101,8 @@ class H5ParticleTracklines(Export):
 
             fc = geojson.FeatureCollection(features)
 
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             filepath = os.path.join(folder, "particle_tracklines.geojson")
             with open(filepath, "wb") as r:
                 r.write(geojson.dumps(fc))
@@ -123,6 +127,8 @@ class H5ParticleMultiPoint(Export):
 
             fc = geojson.FeatureCollection(features)
 
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             filepath = os.path.join(folder, "particle_multipoint.geojson")
             with open(filepath, "wb") as r:
                 r.write(geojson.dumps(fc))
