@@ -263,6 +263,63 @@ class GDALShapefile(Export):
         shpzip.close()
 
 
+class H5GDALShapefile(Export):
+    @classmethod
+    def export(cls, folder, h5_file):
+        shape_schema = {'geometry': 'Point',
+                        'properties': OrderedDict([('particle',     'int'),
+                                                   ('date',         'str'),
+                                                   ('latitude',     'float'),
+                                                   ('longitude',    'float'),
+                                                   ('depth',        'float'),
+                                                   ('u_vector',     'float'),
+                                                   ('v_vector',     'float'),
+                                                   ('w_vector',     'float'),
+                                                   ('temp',         'float'),
+                                                   ('salinity',     'float'),
+                                                   ('age',          'float'),
+                                                   ('settled',      'str'),
+                                                   ('dead',         'str'),
+                                                   ('halted',       'str'),
+                                                   ('lifestage',    'int'),
+                                                   ('progress',     'float')])}
+        shape_crs = {'no_defs': True, 'ellps': 'WGS84', 'datum': 'WGS84', 'proj': 'longlat'}
+
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        filepath = os.path.join(folder, "particles.shp")
+
+        with tables.open_file(h5_file, mode="r") as h5:
+            table = h5.root.trajectories.model_results
+
+            with collection(filepath, "w", driver='ESRI Shapefile', schema=shape_schema, crs=shape_crs) as shape:
+                for r in table.iterrows():
+                    shape.write({'geometry': mapping(Point(r["longitude"], r["latitude"])),
+                                 'properties': OrderedDict([('particle', r["particle"]),
+                                                            ('date', unicode(datetime.utcfromtimestamp(r["time"]).isoformat())),
+                                                            ('latitude', float(r["latitude"])),
+                                                            ('longitude', float(r["longitude"])),
+                                                            ('depth', float(r["depth"])),
+                                                            ('temp', float(r["temperature"])),
+                                                            ('salinity', float(r["salinity"])),
+                                                            ('u_vector', float(r["u_vector"])),
+                                                            ('v_vector', float(r["v_vector"])),
+                                                            ('w_vector', float(r["w_vector"])),
+                                                            ('settled', unicode(r["settled"])),
+                                                            ('dead', unicode(r["dead"])),
+                                                            ('halted', unicode(r["halted"])),
+                                                            ('age', float(r["age"])),
+                                                            ('lifestage' , int(r["lifestage"])),
+                                                            ('progress' , float(r["progress"]))])})
+
+        # Zip the output
+        shpzip = zipfile.ZipFile(os.path.join(folder, "h5shape.shp.zip"), mode='w')
+        for f in glob.glob(os.path.join(folder, "particles*")):
+            shpzip.write(f, os.path.basename(f))
+            os.remove(f)
+        shpzip.close()
+
+
 class NetCDF(Export):
     @classmethod
     def export(cls, folder, particles, datetimes, summary, **kwargs):

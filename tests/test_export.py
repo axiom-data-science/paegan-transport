@@ -21,4 +21,4 @@ class ExportTest(unittest.TestCase):
         ex.H5ParticleTracklines.export(folder=self.output_path, h5_file=os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/hdf5_output.h5")))
 
     def test_h5_shapefile(self):
-        ex.H5Shapefile.export(folder=self.output_path, h5_file=os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/hdf5_output.h5")))
+        ex.H5GDALShapefile.export(folder=self.output_path, h5_file=os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/hdf5_output.h5")))
