@@ -286,7 +286,10 @@ class Shoreline(object):
         changing_distance = reverse_distance
         new_point = AsaGreatCircle.great_circle(distance=reverse_distance, azimuth=random_azimuth, start_point=hit_point)
         new_loc = Location4D(latitude=new_point['latitude'], longitude=new_point['longitude'], depth=start_point.depth)
-        while self.intersect(start_point=nudge_loc.point, end_point=new_loc.point) and count < 6:
+
+        # We don't want to reverse further than the current spatial buffer, because we will reindex the
+        # source file everytime we reverse, which will slow down the calculations considerably.
+        while (not self._spatial_query_object.contains(new_loc.point) or self.intersect(start_point=nudge_loc.point, end_point=new_loc.point)) and count < 6:
             changing_distance /= 2
             new_point = AsaGreatCircle.great_circle(distance=changing_distance, azimuth=random_azimuth, start_point=hit_point)
             new_loc = Location4D(latitude=new_point['latitude'], longitude=new_point['longitude'], depth=start_point.depth)
