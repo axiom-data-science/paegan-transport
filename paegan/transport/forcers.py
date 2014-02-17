@@ -271,9 +271,7 @@ class BaseForcer(object):
             return np.nan
         return sety[0] + (x - setx[0]) * ( (sety[1]-sety[0]) / (setx[1]-setx[0]) )
 
-    def __call__(self, proc, active):
-
-        self.active = active
+    def run(self):
 
         self.load_initial_dataset()
 
@@ -324,7 +322,7 @@ class BaseForcer(object):
         # location as the 'newtime' object.
         for loop_i, i in enumerate(time_indexs[0:-1]):
 
-            if self.active.value is False:
+            if self.active and self.active.value is False:
                 raise ValueError("Particle exiting due to Failure.")
 
             newloc = None
@@ -393,6 +391,10 @@ class BaseForcer(object):
                           Boundary intersection: %f""" % (self.particle.uid, tot_read_data, tot_model_time, tot_boundary_time))
 
         return self.particle
+
+    def __call__(self, proc, active):
+        self.active = active
+        return self.run()
 
 
 class CachingForcer(BaseForcer):
