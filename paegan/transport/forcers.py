@@ -45,7 +45,7 @@ class BaseForcer(object):
         self.release_location_centroid  = kwargs.get("release_location_centroid")
         self.particle                   = kwargs.get("particle")
         self.times                      = kwargs.get("times")
-        self.timevar                    = kwargs.get("timevar")
+        self.timevar                    = kwargs.get("timevar", None)
         self.start_time                 = kwargs.get("start_time")
         self.models                     = kwargs.get("models", [])
         self.usebathy                   = kwargs.get("usebathy", False)
@@ -62,16 +62,18 @@ class BaseForcer(object):
         self.redis_results_channel      = kwargs.get("redis_results_channel", None)
 
         # Set common variable names
-        common_variables = kwargs.get("common_variables")
-        self.uname      = common_variables.get("u", None)
-        self.vname      = common_variables.get("v", None)
-        self.wname      = common_variables.get("w", None)
-        self.temp_name  = common_variables.get("temp", None)
-        self.salt_name  = common_variables.get("salt", None)
-        self.xname      = common_variables.get("x", None)
-        self.yname      = common_variables.get("y", None)
-        self.zname      = common_variables.get("z", None)
-        self.tname      = common_variables.get("time", None)
+        self.common_variables = kwargs.get("common_variables")
+        self.uname      = self.common_variables.get("u", None)
+        self.vname      = self.common_variables.get("v", None)
+        self.wname      = self.common_variables.get("w", None)
+        self.temp_name  = self.common_variables.get("temp", None)
+        self.salt_name  = self.common_variables.get("salt", None)
+        self.xname      = self.common_variables.get("x", None)
+        self.yname      = self.common_variables.get("y", None)
+        self.zname      = self.common_variables.get("z", None)
+        self.tname      = self.common_variables.get("time", None)
+
+        self.active     = None
 
     def load_initial_dataset(self):
         """
@@ -80,6 +82,8 @@ class BaseForcer(object):
         """
         try:
             self.dataset = CommonDataset.open(self.hydrodataset)
+            if self.timevar is None:
+                self.timevar = self.dataset.gettimevar(self.common_variables.get("u"))
         except StandardError:
             logger.warn("No source dataset: %s.  Particle exiting" % self.hydrodataset)
             raise
