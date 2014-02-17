@@ -44,7 +44,7 @@ class BaseModelController(object):
         """
 
         # Shoreline
-        self._use_shoreline  = kwargs.pop('use_shoreline', True)
+        self._use_shoreline         = kwargs.pop('use_shoreline', True)
         self.shoreline_path         = kwargs.get("shoreline_path", None)
         self.shoreline_feature      = kwargs.get("shoreline_feature", None)
         self.shoreline_index_buffer = kwargs.get("shoreline_index_buffer", 0.1)
@@ -267,6 +267,7 @@ class BaseModelController(object):
                         w.terminate()
 
     def cleanup(self):
+
         # Remove Manager so it shuts down
         del self.mgr
 
@@ -317,14 +318,14 @@ class BaseModelController(object):
         logger.setLevel(logging.PROGRESS)
 
         self.redis_url             = None
-        redis_log_channel          = None
+        self.redis_log_channel     = None
         self.redis_results_channel = None
         if "redis" in kwargs.get("output_formats", []):
             from paegan.logger.redis_handler import RedisHandler
             self.redis_url             = kwargs.get("redis_url")
-            redis_log_channel     = kwargs.get("redis_log_channel")
+            self.redis_log_channel     = kwargs.get("redis_log_channel")
             self.redis_results_channel = kwargs.get("redis_results_channel")
-            rhandler = RedisHandler(redis_log_channel, self.redis_url)
+            rhandler = RedisHandler(self.redis_log_channel, self.redis_url)
             rhandler.setLevel(logging.PROGRESS)
             logger.addHandler(rhandler)
 
@@ -371,29 +372,30 @@ class BaseModelController(object):
             p.notes.append(p.note)
             self.particles.append(p)
 
-        # Get the number of cores (may take some tuning) and create that
-        # many workers then pass particles into the queue for the workers
-        self.mgr = multiprocessing.Manager()
+        if kwargs.get("manager", True):
+            # Get the number of cores (may take some tuning) and create that
+            # many workers then pass particles into the queue for the workers
+            self.mgr = multiprocessing.Manager()
 
-        # This tracks if the system is 'alive'.  Most looping whiles will check this
-        # and break out if it is False.  This is True until something goes very wrong.
-        self.active = self.mgr.Value('bool', True)
+            # This tracks if the system is 'alive'.  Most looping whiles will check this
+            # and break out if it is False.  This is True until something goes very wrong.
+            self.active = self.mgr.Value('bool', True)
 
-        # Each particle is a task, plus the CachingDataController
-        self.number_of_tasks = self.get_number_of_tasks()
+            # Each particle is a task, plus the CachingDataController
+            self.number_of_tasks = self.get_number_of_tasks()
 
-        # Either spin up the number of cores, or the number of tasks
-        self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
+            # Either spin up the number of cores, or the number of tasks
+            self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
 
-        # Number of tasks that we need to run.  This is decremented everytime something exits.
-        self.n_run = self.mgr.Value('int', self.number_of_tasks)
-        # The lock that controls access to the 'n_run' variable
-        self.nproc_lock = self.mgr.Lock()
+            # Number of tasks that we need to run.  This is decremented everytime something exits.
+            self.n_run = self.mgr.Value('int', self.number_of_tasks)
+            # The lock that controls access to the 'n_run' variable
+            self.nproc_lock = self.mgr.Lock()
 
-        # Create the task queue for all of the particles and the CachingDataController
-        self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
-        # Create the result queue for all of the particles and the CachingDataController
-        self.results = self.mgr.Queue(self.number_of_tasks)
+            # Create the task queue for all of the particles and the CachingDataController
+            self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
+            # Create the result queue for all of the particles and the CachingDataController
+            self.results = self.mgr.Queue(self.number_of_tasks)
 
         logger.progress((3, "Initializing and caching hydro model's grid"))
         try:
@@ -767,3 +769,17 @@ class CachingModelController(BaseModelController):
                 os.remove(self.cache_path)
             except OSError:
                 logger.debug("Could not remove cache file, it probably never existed")
+
+
+class DistributedModelController(BaseModelController):
+
+    def __init__(self, **kwargs):
+        super(DistributedModelController, self).__init__(**kwargs)
+
+    def setup_run(self, hydrodataset, **kwargs):
+        self.hydrodataset = hydrodataset
+        kwargs["manager"] = False
+        super(DistributedModelController, self).setup_run(**kwargs)
+
+    def run(self, hydrodataset, **kwargs):
+        raise NotImplementedError("Distributed models can not be started, only setup.  Use 'setup_run' and start the Forcers manually.")
