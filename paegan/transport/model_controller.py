@@ -21,6 +21,33 @@ import logging
 
 from paegan.logger import logger
 
+def do_work(next_task):
+    try:
+        answer = (1, next_task("noname", None))
+    except Exception:
+        logger.exception("Disabling Error")
+        if isinstance(next_task, CachingDataController):
+            answer = (-2, "CachingDataController")
+            # Tell the particles that the CachingDataController is releasing file
+            #self.get_data.value = False
+            # The data controller has died, so don't process any more tasks
+            #self.active.value = False
+        elif isinstance(next_task, BaseForcer):
+            answer = (-1, next_task.particle)
+        else:
+            logger.warn("Strange task raised an exception: %s" % str(next_task.__class__))
+            answer = (None, None)
+    finally:
+        #self.result_queue.put(answer)
+
+        #self.nproc_lock.acquire()
+        #self.n_run.value = self.n_run.value - 1
+        #self.nproc_lock.release()
+
+        #self.task_queue.task_done()
+        pass
+
+    return answer
 
 class BaseModelController(object):
     """
@@ -277,6 +304,8 @@ class BaseModelController(object):
     def start_tasks(self):
         try:
             logger.info('Adding %i particles as tasks' % len(self.particles))
+            tasks = []
+
             for part in self.particles:
                 forcer = BaseForcer(self.hydrodataset,
                                     particle=part,
@@ -296,22 +325,15 @@ class BaseModelController(object):
                                     time_method=self.time_method,
                                     redis_url=self.redis_url,
                                     redis_results_channel=self.redis_results_channel,
-                                    shoreline_index_buffer=self.shoreline_index_buffer
-                                   )
-                self.tasks.put(forcer)
+                                    shoreline_index_buffer=self.shoreline_index_buffer)
+                tasks.append(forcer)
 
-            # Create workers for the particles.
-            self.procs = [ Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, None, name="BaseForcer-%d" % i)
-                           for i in xrange(self.nproc - 1) ]
-            for w in self.procs:
-                w.start()
-                logger.info('Started %s' % w.name)
-
-            return True
+            ar = self.pool.map_async(do_work, tasks)
+            return ar
 
         except Exception:
             logger.exception("Something didn't start correctly!")
-            return False
+            raise
 
     def setup_run(self, **kwargs):
 
@@ -372,30 +394,32 @@ class BaseModelController(object):
             p.notes.append(p.note)
             self.particles.append(p)
 
-        if kwargs.get("manager", True):
-            # Get the number of cores (may take some tuning) and create that
-            # many workers then pass particles into the queue for the workers
-            self.mgr = multiprocessing.Manager()
+        # Get the number of cores (may take some tuning) and create that
+        # many workers then pass particles into the queue for the workers
+        self.mgr = multiprocessing.Manager()
 
-            # This tracks if the system is 'alive'.  Most looping whiles will check this
-            # and break out if it is False.  This is True until something goes very wrong.
-            self.active = self.mgr.Value('bool', True)
+        # This tracks if the system is 'alive'.  Most looping whiles will check this
+        # and break out if it is False.  This is True until something goes very wrong.
+        self.active = self.mgr.Value('bool', True)
 
-            # Each particle is a task, plus the CachingDataController
-            self.number_of_tasks = self.get_number_of_tasks()
+        # Each particle is a task, plus the CachingDataController
+        self.number_of_tasks = self.get_number_of_tasks()
 
-            # Either spin up the number of cores, or the number of tasks
-            self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
+        # Either spin up the number of cores, or the number of tasks
+        self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
 
-            # Number of tasks that we need to run.  This is decremented everytime something exits.
-            self.n_run = self.mgr.Value('int', self.number_of_tasks)
-            # The lock that controls access to the 'n_run' variable
-            self.nproc_lock = self.mgr.Lock()
+        # Number of tasks that we need to run.  This is decremented everytime something exits.
+        self.n_run = self.mgr.Value('int', self.number_of_tasks)
+        # The lock that controls access to the 'n_run' variable
+        self.nproc_lock = self.mgr.Lock()
 
-            # Create the task queue for all of the particles and the CachingDataController
-            self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
-            # Create the result queue for all of the particles and the CachingDataController
-            self.results = self.mgr.Queue(self.number_of_tasks)
+        # Create the task queue for all of the particles and the CachingDataController
+        self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
+        # Create the result queue for all of the particles and the CachingDataController
+        self.results = self.mgr.Queue(self.number_of_tasks)
+
+        # Multiprocessing Pool (@TODO move to multiproc only)
+        self.pool = multiprocessing.Pool()
 
         logger.progress((3, "Initializing and caching hydro model's grid"))
         try:
@@ -444,11 +468,15 @@ class BaseModelController(object):
         self.setup_run(**kwargs)
 
         logger.progress((4, "Starting tasks"))
-        if self.start_tasks() is False:
+        result = self.start_tasks()
+        if result is None:
             raise BaseDataControllerError("Not all tasks started! Exiting.")
 
         # This blocks until the tasks are all done.
-        self.listen_for_results()
+        #self.listen_for_results()
+
+        finished_data = result.get()        # blocks until completion
+        self.particles = [x[1] for x in finished_data]
 
         logger.info('Consumers are all finished!')
 
@@ -542,6 +570,7 @@ class CachingModelController(BaseModelController):
             self.data_controller_process.start()
 
             logger.info('Adding %i particles as tasks' % len(self.particles))
+
             for part in self.particles:
                 forcer = CachingForcer(self.cache_path,
                                        particle=part,
@@ -635,7 +664,7 @@ class CachingModelController(BaseModelController):
         # PID of process with lock
         self.has_write_lock = self.mgr.Value('int', -1)
 
-    def listen_for_results(self):
+    def listen_for_results(self, ar):
         try:
             # Get results back from queue, test for failed particles
             return_particles = []
