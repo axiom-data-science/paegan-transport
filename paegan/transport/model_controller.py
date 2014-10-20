@@ -21,33 +21,9 @@ import logging
 
 from paegan.logger import logger
 
-def do_work(next_task):
-    try:
-        answer = (1, next_task("noname", None))
-    except Exception:
-        logger.exception("Disabling Error")
-        if isinstance(next_task, CachingDataController):
-            answer = (-2, "CachingDataController")
-            # Tell the particles that the CachingDataController is releasing file
-            #self.get_data.value = False
-            # The data controller has died, so don't process any more tasks
-            #self.active.value = False
-        elif isinstance(next_task, BaseForcer):
-            answer = (-1, next_task.particle)
-        else:
-            logger.warn("Strange task raised an exception: %s" % str(next_task.__class__))
-            answer = (None, None)
-    finally:
-        #self.result_queue.put(answer)
-
-        #self.nproc_lock.acquire()
-        #self.n_run.value = self.n_run.value - 1
-        #self.nproc_lock.release()
-
-        #self.task_queue.task_done()
-        pass
-
-    return answer
+class Runner(object):
+    def __call__(self, task):
+        return task(None)
 
 class BaseModelController(object):
     """
@@ -68,6 +44,9 @@ class BaseModelController(object):
             * latitude (DD) no default
             * longitude (DD) no default
             * depth (meters) default 0
+
+            Non-mandatory named arguments:
+            * pool (task pool) - defaults to multiprocessing.pool, inject your own for cluster ability
         """
 
         # Shoreline
@@ -125,6 +104,8 @@ class BaseModelController(object):
         except StandardError:
             logger.exception("Must provide the number of timesteps to the ModelController")
             raise
+
+        self.pool = kwargs.get('pool', None)
 
     def set_geometry(self, geo):
         # If polygon is passed in, we need to trim it by the coastline
@@ -206,102 +187,38 @@ class BaseModelController(object):
         return len(self.particles)
 
     def listen_for_results(self):
-        try:
-            # Get results back from queue, test for failed particles
-            return_particles = []
-            retrieved = 0.
-            self.error_code = 0
+        logger.info("Waiting for %i particle results" % len(self.particles))
+        logger.progress((5, "Running model"))
 
-            logger.info("Waiting for %i particle results" % len(self.particles))
-            logger.progress((5, "Running model"))
-            while retrieved < self.number_of_tasks:
-                try:
-                    # Returns a tuple of code, result
-                    code, tempres = self.results.get(timeout=240)
-                except Queue.Empty:
+        particles = self.result.get(timeout=300)        # blocks until completion
 
-                    new_procs = []
-                    old_procs = []
-                    for p in self.procs:
-                        if not p.is_alive() and p.exitcode != 0:
-                            # Do what the Consumer would do if something finished.
-                            # Add something to results queue
-                            self.results.put((-3, "Zombie"))
-                            # Decrement nproc (Consumer exits when this is 0)
-                            with self.nproc_lock:
-                                self.n_run.value = self.n_run.value - 1
+        # @TODO: smartness with logging partial results
+        # waitloop?
 
-                            # Remove task from queue (so they can be joined later on)
-                            self.tasks.task_done()
+        return particles
 
-                            # Start a new Consumer.  It will exit if there are no tasks available.
-                            np = Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, None, name=p.name)
-                            new_procs.append(np)
-                            old_procs.append(p)
-
-                    for p in old_procs:
-                        try:
-                            self.procs.remove(p)
-                        except ValueError:
-                            logger.warn("Did not find %s in the list of processes.  Continuing on." % p.name)
-
-                    for p in new_procs:
-                        self.procs.append(p)
-                        logger.warn("Started a new consumer (%s) to replace a zombie consumer" % p.name)
-                        p.start()
-
-                else:
-                    # We got one.
-                    retrieved += 1
-                    if code is None:
-                        logger.warn("Got an unrecognized response from a task.")
-                    elif code == -1:
-                        logger.warn("Particle %s has FAILED!!" % tempres.uid)
-                    elif code == -3:
-                        self.error_code = code
-                        logger.info("A zombie process was caught and task was removed from queue")
-                    elif isinstance(tempres, Particle):
-                        logger.info("Particle %d finished" % tempres.uid)
-                        return_particles.append(tempres)
-                        # We mulitply by 95 here to save 5% for the exporting
-                        logger.progress((round((retrieved / self.number_of_tasks) * 90., 1), "Particle %d finished" % tempres.uid))
-                    else:
-                        logger.info("Got a strange result on results queue: %s" % str(tempres))
-
-                    logger.info("Retrieved %i/%i results" % (int(retrieved), self.number_of_tasks))
-
-            if len(return_particles) != len(self.particles):
-                logger.warn("Some particles failed and are not included in the output")
-
-            # The results queue should be empty at this point
-            assert self.results.empty() is True
-
-            # Should be good to join on the tasks now that the queue is empty
-            logger.info("Joining the task queue")
-            self.tasks.join()
-
-            self.particles = return_particles
-
-        finally:
-            # Join all processes
-            logger.info("Joining the processes")
-            for w in self.procs:
-                    # Wait 20 seconds
-                    w.join(20.)
-                    if w.is_alive():
-                        # Process is hanging, kill it.
-                        logger.info("Terminating %s forcefully.  This should have exited itself." % w.name)
-                        w.terminate()
+        """
+        logger.warn("Got an unrecognized response from a task.")
+        logger.warn("Particle %s has FAILED!!" % tempres.uid)
+        logger.info("A zombie process was caught and task was removed from queue")
+        logger.info("Particle %d finished" % tempres.uid)
+        # We mulitply by 95 here to save 5% for the exporting
+        logger.progress((round((retrieved / self.number_of_tasks) * 90., 1), "Particle %d finished" % tempres.uid))
+        logger.info("Got a strange result on results queue: %s" % str(tempres))
+        logger.info("Retrieved %i/%i results" % (int(retrieved), self.number_of_tasks))
+        """
 
     def cleanup(self):
-
-        # Remove Manager so it shuts down
-        del self.mgr
 
         # Remove timevar
         del self.timevar
 
     def start_tasks(self):
+
+        # @TODO: this is more initialization, but need to prevent derived classes from doing this
+        if self.pool is None:
+            self.pool = multiprocessing.Pool()
+
         try:
             logger.info('Adding %i particles as tasks' % len(self.particles))
             tasks = []
@@ -328,7 +245,7 @@ class BaseModelController(object):
                                     shoreline_index_buffer=self.shoreline_index_buffer)
                 tasks.append(forcer)
 
-            ar = self.pool.map_async(do_work, tasks)
+            ar = self.pool.map_async(Runner(), tasks)
             return ar
 
         except Exception:
@@ -394,34 +311,10 @@ class BaseModelController(object):
             p.notes.append(p.note)
             self.particles.append(p)
 
-        # Get the number of cores (may take some tuning) and create that
-        # many workers then pass particles into the queue for the workers
-        self.mgr = multiprocessing.Manager()
-
-        # This tracks if the system is 'alive'.  Most looping whiles will check this
-        # and break out if it is False.  This is True until something goes very wrong.
-        self.active = self.mgr.Value('bool', True)
-
         # Each particle is a task, plus the CachingDataController
         self.number_of_tasks = self.get_number_of_tasks()
 
-        # Either spin up the number of cores, or the number of tasks
-        self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
-
-        # Number of tasks that we need to run.  This is decremented everytime something exits.
-        self.n_run = self.mgr.Value('int', self.number_of_tasks)
-        # The lock that controls access to the 'n_run' variable
-        self.nproc_lock = self.mgr.Lock()
-
-        # Create the task queue for all of the particles and the CachingDataController
-        self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
-        # Create the result queue for all of the particles and the CachingDataController
-        self.results = self.mgr.Queue(self.number_of_tasks)
-
-        # Multiprocessing Pool (@TODO move to multiproc only)
-        self.pool = multiprocessing.Pool()
-
-        logger.progress((3, "Initializing and caching hydro model's grid"))
+        logger.progress((3, "Initializing and caching hydro model's grid %s" % self.hydrodataset))
         try:
             ds = CommonDataset.open(self.hydrodataset)
         except Exception:
@@ -468,15 +361,12 @@ class BaseModelController(object):
         self.setup_run(**kwargs)
 
         logger.progress((4, "Starting tasks"))
-        result = self.start_tasks()
-        if result is None:
+        self.result = self.start_tasks()
+        if self.result is None:
             raise BaseDataControllerError("Not all tasks started! Exiting.")
 
         # This blocks until the tasks are all done.
-        #self.listen_for_results()
-
-        finished_data = result.get()        # blocks until completion
-        self.particles = [x[1] for x in finished_data]
+        self.listen_for_results()
 
         logger.info('Consumers are all finished!')
 
@@ -602,8 +492,8 @@ class CachingModelController(BaseModelController):
                 self.tasks.put(forcer)
 
             # Create workers for the particles.
-            self.procs = [ Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, self.get_data, name="CachingForcer-%d" % i)
-                           for i in xrange(self.nproc - 1) ]
+            self.procs = [Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, self.get_data, name="CachingForcer-%d" % i)
+                          for i in xrange(self.nproc - 1) ]
             for w in self.procs:
                 w.start()
                 logger.info('Started %s' % w.name)
@@ -620,6 +510,29 @@ class CachingModelController(BaseModelController):
     def setup_run(self, **kwargs):
 
         super(CachingModelController, self).setup_run(**kwargs)
+
+        # Get the number of cores (may take some tuning) and create that
+        # many workers then pass particles into the queue for the workers
+        self.mgr = multiprocessing.Manager()
+
+        # This tracks if the system is 'alive'.  Most looping whiles will check this
+        # and break out if it is False.  This is True until something goes very wrong.
+        self.active = self.mgr.Value('bool', True)
+
+        # Either spin up the number of cores, or the number of tasks
+        self.nproc = min(multiprocessing.cpu_count() - 1, self.number_of_tasks)
+
+        # Number of tasks that we need to run.  This is decremented everytime something exits.
+        self.n_run = self.mgr.Value('int', self.number_of_tasks)
+
+        # The lock that controls access to the 'n_run' variable
+        self.nproc_lock = self.mgr.Lock()
+
+        # Create the task queue for all of the particles and the CachingDataController
+        self.tasks = multiprocessing.JoinableQueue(self.number_of_tasks)
+
+        # Create the result queue for all of the particles and the CachingDataController
+        self.results = self.mgr.Queue(self.number_of_tasks)
 
         # Should we remove the cache file at the end of the run?
         self.remove_cache        = kwargs.get("remove_cache", False)
@@ -664,7 +577,7 @@ class CachingModelController(BaseModelController):
         # PID of process with lock
         self.has_write_lock = self.mgr.Value('int', -1)
 
-    def listen_for_results(self, ar):
+    def listen_for_results(self):
         try:
             # Get results back from queue, test for failed particles
             return_particles = []
@@ -789,8 +702,13 @@ class CachingModelController(BaseModelController):
                         logger.info("Terminating %s forcefully.  This should have exited itself." % w.name)
                         w.terminate()
 
+        return self.particles
+
     def cleanup(self):
         super(CachingModelController, self).cleanup()
+
+        # Remove Manager so it shuts down
+        del self.mgr
 
         # Remove the cache file
         if self.remove_cache is True:

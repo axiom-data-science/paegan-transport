@@ -50,7 +50,7 @@ class Consumer(multiprocessing.Process):
             else:
                 answer = (None, None)
                 try:
-                    answer = (1, next_task(self.name, self.active))
+                    answer = (1, next_task(self.active))
                 except Exception:
                     logger.exception("Disabling Error")
                     if isinstance(next_task, CachingDataController):
@@ -155,7 +155,7 @@ class CachingDataController(object):
             else:
                 local[inds[0]:inds[-1]+1, y:y_1, x:x_1] = remote[inds[0]:inds[-1]+1, y:y_1, x:x_1]
 
-    def __call__(self, proc, active):
+    def __call__(self, active):
         c = 0
 
         self.dataset = CommonDataset.open(self.hydrodataset)

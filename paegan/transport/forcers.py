@@ -392,7 +392,7 @@ class BaseForcer(object):
 
         return self.particle
 
-    def __call__(self, proc, active):
+    def __call__(self, active):
         self.active = active
         return self.run()
 
@@ -428,7 +428,7 @@ class CachingForcer(BaseForcer):
                 self.read_count.value -= 1
                 self.has_read_lock.remove(os.getpid())
 
-    def __call__(self, proc, active):
+    def __call__(self, active):
 
         if active.value is True:
             while self.get_data.value is True:
@@ -436,7 +436,7 @@ class CachingForcer(BaseForcer):
                 timer.sleep(5)
                 pass
 
-        return super(CachingForcer, self).__call__(proc, active)
+        return super(CachingForcer, self).__call__(active)
 
     def get_nearest_data(self, i):
         self.fill_cache_with_nearest_data(i)
