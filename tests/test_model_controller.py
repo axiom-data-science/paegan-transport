@@ -79,7 +79,7 @@ class CachingModelControllerTest(unittest.TestCase):
                                     use_bathymetry=False,
                                     use_shoreline=False)
 
-        particles = model.run("/data/lm/tests/pws_das_2014*.nc", output_formats = ['NetCDF'], output_path=self.output_path)
+        particles = model.run("/data/lm/tests/pws_das_2014*.nc", output_formats = ['NetCDF', 'trackline'], output_path=self.output_path)
         self.assertEquals(len(particles), self.num_particles)
         # Not a caching controller, no cache path should exist
         self.assertFalse(os.path.exists(self.cache_path))
@@ -443,7 +443,7 @@ class CachingModelControllerTest(unittest.TestCase):
                                     use_shoreline=True,
                                     shoreline_index_buffer=0.05)
 
-        particles = model.run("/data/lm/datasets/pws/pws_das_2014*.nc")
+        particles = model.run("/data/lm/tests/pws_das_2014*.nc")
         self.assertEquals(len(particles), 2)
         # Not a caching controller, no cache path should exist
         self.assertFalse(os.path.exists(self.cache_path))
@@ -466,7 +466,7 @@ class CachingModelControllerTest(unittest.TestCase):
                                     shoreline_path='/data/lm/shore/westcoast/New_Land_Clean.shp',
                                     shoreline_index_buffer=0.05)
 
-        particles = model.run("/data/lm/datasets/pws/pws_das_2014*.nc")
+        particles = model.run("/data/lm/tests/pws_das_2014*.nc")
         self.assertEquals(len(particles), 2)
         # Not a caching controller, no cache path should exist
         self.assertFalse(os.path.exists(self.cache_path))
