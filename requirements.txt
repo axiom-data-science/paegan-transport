@@ -2,3 +2,5 @@ GDAL>=1.9.1,<1.10
 Fiona==0.8
 requests==1.2.3
 paegan
+redis
+geojson
