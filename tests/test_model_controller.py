@@ -64,7 +64,18 @@ class CachingModelControllerTest(unittest.TestCase):
         os.remove(self.cache_path)
         self.assertTrue(os.path.exists(os.path.join(self.output_path, "trajectories.nc")))
 
-    def test_run_from_multiple_files_without_cache(self):
+    def test_run_from_multiple_files_without_cache_on_ipy_cluster(self):
+        try:
+            from IPython.parallel import Client
+            client = Client()
+
+            pool = client.load_balanced_view()
+        except:
+            raise unittest.SkipTest("Cluster connection failed")
+
+        self.test_run_from_multiple_files_without_cache(pool=pool)
+
+    def test_run_from_multiple_files_without_cache(self, pool=None):
         models = [self.transport]
 
         p = Point(self.start_lon, self.start_lat)
@@ -77,7 +88,8 @@ class CachingModelControllerTest(unittest.TestCase):
                                     npart=self.num_particles,
                                     models=models,
                                     use_bathymetry=False,
-                                    use_shoreline=False)
+                                    use_shoreline=False,
+                                    pool=pool)
 
         particles = model.run("/data/lm/tests/pws_das_2014*.nc", output_formats = ['NetCDF', 'trackline'], output_path=self.output_path)
         self.assertEquals(len(particles), self.num_particles)

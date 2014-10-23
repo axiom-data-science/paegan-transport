@@ -11,6 +11,7 @@ from paegan.transport.exceptions import ModelError, BaseDataControllerError
 from shapely.geometry import Point, Polygon, MultiPolygon
 from shapely.ops import cascaded_union
 import multiprocessing
+import multiprocessing.pool
 from paegan.transport.parallel_manager import CachingDataController, Consumer
 from paegan.transport.forcers import CachingForcer, BaseForcer
 import paegan.transport.export as ex
@@ -22,6 +23,9 @@ import logging
 from paegan.logger import logger
 
 class Runner(object):
+    """
+    Shim needed for Pool/cluster runnable interface.
+    """
     def __call__(self, task):
         return task(None)
 
@@ -190,23 +194,44 @@ class BaseModelController(object):
         logger.info("Waiting for %i particle results" % len(self.particles))
         logger.progress((5, "Running model"))
 
-        particles = self.result.get(timeout=300)        # blocks until completion
+        particles = []
+        retrieved = 0
+        timeout = 200
 
-        # @TODO: smartness with logging partial results
-        # waitloop?
+        while retrieved < len(self.particles):
+            try:
+                # @TODO: better mechanism than switching on type
+                if isinstance(self.pool, multiprocessing.pool.Pool):
+                    # self.result is an iterator that can timeout on next()
+                    particle = self.result.next(timeout)
+                    retrieved += 1
+                    particles.append(particle)
+                else:
+                    # IPython parallel View
+                    # self.result is an AsyncMapResult
+                    from IPython.parallel import TimeoutError
+                    try:
+                        new_particles = self.result.get(timeout=1)
+                    except TimeoutError:
+                        pass    # this is fine, get incremental progress below
+                    else:
+                        particles = new_particles
+
+                    # progress is absolute, not incremental
+                    retrieved = self.result.progress
+
+            except StopIteration:
+                assert retrieved >= len(self.particles)
+                break
+            except:
+                logger.exception("Particle has FAILED!!")
+                #logger.warn("Particle %s has FAILED!!" % particle.uid)
+                continue
+
+            # We multiply by 95 here to save 5% for the exporting
+            logger.progress((round((float(retrieved) / self.number_of_tasks) * 90., 1), "%s Particle(s) complete" % retrieved))
 
         return particles
-
-        """
-        logger.warn("Got an unrecognized response from a task.")
-        logger.warn("Particle %s has FAILED!!" % tempres.uid)
-        logger.info("A zombie process was caught and task was removed from queue")
-        logger.info("Particle %d finished" % tempres.uid)
-        # We mulitply by 95 here to save 5% for the exporting
-        logger.progress((round((retrieved / self.number_of_tasks) * 90., 1), "Particle %d finished" % tempres.uid))
-        logger.info("Got a strange result on results queue: %s" % str(tempres))
-        logger.info("Retrieved %i/%i results" % (int(retrieved), self.number_of_tasks))
-        """
 
     def cleanup(self):
 
@@ -245,8 +270,14 @@ class BaseModelController(object):
                                     shoreline_index_buffer=self.shoreline_index_buffer)
                 tasks.append(forcer)
 
-            ar = self.pool.map_async(Runner(), tasks)
-            return ar
+            # @TODO: better mechanism than switching on type
+            if isinstance(self.pool, multiprocessing.pool.Pool):
+                aiter = self.pool.imap(Runner(), tasks)
+            else:
+                # IPython parallel View
+                aiter = self.pool.map_async(Runner(), tasks)
+
+            return aiter
 
         except Exception:
             logger.exception("Something didn't start correctly!")
@@ -366,7 +397,7 @@ class BaseModelController(object):
             raise BaseDataControllerError("Not all tasks started! Exiting.")
 
         # This blocks until the tasks are all done.
-        self.listen_for_results()
+        self.particles = self.listen_for_results()
 
         logger.info('Consumers are all finished!')
 
