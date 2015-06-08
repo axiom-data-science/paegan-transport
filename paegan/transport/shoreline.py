@@ -1,13 +1,12 @@
-import json
 import os
 import math
-import time
 import numpy as np
 import requests
 import urlparse
 from xml.etree import ElementTree as ET
-from osgeo import ogr
-from gdalconst import *
+
+import fiona
+
 from shapely import wkt
 from shapely.geometry import asShape, box
 from shapely.geometry import LineString
@@ -18,7 +17,6 @@ from paegan.utils.asagreatcircle import AsaGreatCircle
 from paegan.utils.asamath import AsaMath
 from paegan.utils.asarandom import AsaRandom
 from paegan.location4d import Location4D
-from shapely.prepared import prep
 
 from paegan.logger import logger
 
@@ -133,7 +131,6 @@ class Shoreline(object):
         # re-query the shapefile in a buffer around this point
         #logger.info("Spatial query object: %s" % unicode(self._spatial_query_object))
 
-        st = time.clock()
         if self._spatial_query_object is None:
             # Index if we have not
             self.index(point=spoint)
@@ -324,19 +321,13 @@ class ShorelineFile(Shoreline):
         else:
             self._file = os.path.normpath(os.path.join(__file__, "../../resources/shoreline/global/10m_land.shp"))
 
-        self._source = ogr.Open(self._file, GA_ReadOnly)
-        if not self._source:
-            raise StandardError('Could not load {}'.format(self._file))
-
-        self._layer = self._source.GetLayer()
+        self._source = fiona.open(self._file)
 
         super(ShorelineFile, self).__init__(**kwargs)
 
     def close(self):
         super(ShorelineFile, self).close()
-
-        # Srsly. Per GDAL docs this is how we should close the dataset.
-        self._source = None
+        self._source.close()
 
     def get_capabilities(self):
         """
@@ -346,11 +337,7 @@ class ShorelineFile(Shoreline):
         with LatLongBoundingBox and Name keys defined.
         """
         d = {}
-
-        ext = self._layer.GetExtent()       # @TODO if a filter is on this may give different results
-        llbb = [round(float(v), 4) for v in ext]
-
-        d['LatLongBoundingBox'] = box(llbb[0], llbb[2], llbb[1], llbb[3])
+        d['LatLongBoundingBox'] = self._source.bounds
         d['Name']               = self._file.split('/')[-1].split('.')[0]
 
         return d
@@ -369,11 +356,7 @@ class ShorelineFile(Shoreline):
 
         Returns GeoJSON (loaded as a list of python dictionaries).
         """
-        poly = ogr.CreateGeometryFromWkt(bounds)
-        self._layer.SetSpatialFilter(poly)
-        poly.Destroy()
-
-        return [json.loads(e.GetGeometryRef().ExportToJson()) for e in self._layer]
+        return [asShape(e[1]['geometry']) for e in self._source.items(bbox=bounds)]
 
     def index(self, point=None, spatialbuffer=None):
         """
@@ -385,20 +368,18 @@ class ShorelineFile(Shoreline):
 
         """
         spatialbuffer = spatialbuffer or self._spatialbuffer
-        self._layer.SetSpatialFilter(None)
         self._spatial_query_object = None
         geoms                      = []
 
         if point:
             self._spatial_query_object = point.buffer(spatialbuffer)
-            geoms = self.get_geoms_for_bounds(self._spatial_query_object.wkt)
+            geoms = self.get_geoms_for_bounds(self._spatial_query_object.envelope.bounds)
 
         self._geoms = []
 
         # The _geoms should be only Polygons, not MultiPolygons
-        for element in geoms:
+        for geom in geoms:
             try:
-                geom = asShape(element)
                 if isinstance(geom, Polygon):
                     self._geoms.append(geom)
                 elif isinstance(geom, MultiPolygon):
@@ -406,6 +387,7 @@ class ShorelineFile(Shoreline):
                         self._geoms.append(poly)
             except:
                 logger.warn("Could not find valid geometry in shoreline element.  Point: %s, Buffer: %s" % (str(point), str(spatialbuffer)))
+
 
 class ShorelineWFS(Shoreline):
     """
@@ -482,9 +464,9 @@ class ShorelineWFS(Shoreline):
 
         raw_geojson_response = requests.get(self._wfs_server, params=params)
         raw_geojson_response.raise_for_status()
-        geojson = raw_geojson_response.json()
+        gj = raw_geojson_response.json()
 
-        return [g['geometry'] for g in geojson['features']]
+        return [asShape(g['geometry']) for g in gj['features']]
 
     def index(self, point=None, spatialbuffer=None):
         spatialbuffer              = spatialbuffer or self._spatialbuffer
@@ -492,15 +474,14 @@ class ShorelineWFS(Shoreline):
         geoms                      = []
 
         if point:
-            self._spatial_query_object = prep(point.buffer(spatialbuffer))
+            self._spatial_query_object = point.buffer(spatialbuffer)
             bounds                     = point.buffer(spatialbuffer).envelope.wkt
             geoms                      = self.get_geoms_for_bounds(bounds)
 
         self._geoms = []
 
-        for element in geoms:
+        for geom in geoms:
             try:
-                geom = asShape(element)
                 if isinstance(geom, Polygon):
                     self._geoms.append(geom)
                 elif isinstance(geom, MultiPolygon):
@@ -508,4 +489,3 @@ class ShorelineWFS(Shoreline):
                         self._geoms.append(poly)
             except:
                 logger.warn("Could not find valid geometry in shoreline element.  Point: %s, Buffer: %s" % (str(point), str(spatialbuffer)))
-

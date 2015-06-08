@@ -7,6 +7,11 @@ from paegan.utils.asamath import AsaMath
 import time
 import os
 
+import logging
+from paegan.logger import logger
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+
 
 class ShorelineTest(unittest.TestCase):
 
