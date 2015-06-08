@@ -493,7 +493,7 @@ class ShorelineWFS(Shoreline):
 
         if point:
             self._spatial_query_object = prep(point.buffer(spatialbuffer))
-            bounds                     = self._spatial_query_object.envelope.wkt
+            bounds                     = point.buffer(spatialbuffer).envelope.wkt
             geoms                      = self.get_geoms_for_bounds(bounds)
 
         self._geoms = []
