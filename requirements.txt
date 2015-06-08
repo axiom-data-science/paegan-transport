@@ -1,7 +1,7 @@
 GDAL>=1.9.1
 Fiona>=0.8
 requests>=1.2.3
-paegan
+paegan>=1.1.2
 redis
 geojson
 gj2ascii  # For tests
