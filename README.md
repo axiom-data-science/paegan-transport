@@ -25,10 +25,12 @@ pip install paegan-transport
 
 Paegan-Transport requires the following python libraries which will be downloaded and installed through `pip`:
 
-* GDAL==1.9.1
-* Fiona==0.8
-* paegan==0.9.9
-* requests==1.2.3
+* GDAL>=1.9.1
+* Fiona>=0.8
+* requests>=1.2.3
+* paegan
+* redis
+* geojson
 
 See the [Paegan](https://github.com/asascience-open/paegan) documentation for installing other dependencies related to Paegan.
 
@@ -49,7 +51,7 @@ pip install pytest
 python -m pytest -s
 ```
 
-If you want to run the model_controller or shoreline tests, you will need to edit the test files with paths appropriate for your system. Default is `/data/lm` with `/data/lm/bathy` and `/data/lm/shore` filled in with the files below.
+If you want to run the any model controller or shoreline tests, you will need to edit the test files with paths appropriate for your system. Default is `/data/lm` with `/data/lm/bathy` and `/data/lm/shore` filled in with the files below.
 
 Some tests require large files that are not in source control.  You can get them here:
 * ETOPO1 Global Bathymetry ([ETOPO1_Bed_g_gmt4.grd](http://s3.amazonaws.com/paegan/resources/ETOPO1_Bed_g_gmt4.grd))
@@ -58,6 +60,6 @@ Some tests require large files that are not in source control.  You can get them
 
 Contributors
 ----------------
-* Kyle Wilcox <kwilcox@asascience.com>
-* Alex Crosby <acrosby@asascience.com>
-* Dave Foster <dfoster@asascience.com>
+* Kyle Wilcox <kwilcox@axiomdatascience.com>
+* Alex Crosby <crosbyar@gmail.com>
+* Dave Foster <dfoster@axiomdatascience.com>

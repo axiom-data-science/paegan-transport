@@ -318,11 +318,11 @@ class ShorelineFileTest(unittest.TestCase):
 
     def test_get_capabilities(self):
         s = Shoreline()
-        assert isinstance(dict, s.get_capabilities())
+        assert isinstance(s.get_capabilities(), dict)
 
     def test_get_feature_type_info(self):
         s = Shoreline()
-        assert isinstance(dict, s.get_capabilities())
+        assert isinstance(s.get_capabilities(), dict)
 
 
 class ShorelineWFSTest(ShorelineFileTest):
