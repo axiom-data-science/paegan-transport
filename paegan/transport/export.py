@@ -2,21 +2,16 @@ import os
 import glob
 import math
 import zipfile
-from shapely.geometry import MultiPoint, LineString, Point, mapping
+from shapely.geometry import MultiPoint, Point, mapping
 from datetime import datetime
 
 # NetCDF
 import netCDF4
 import pytz
 
-# Trackline
-import json
-
 from fiona import collection
 
 from collections import OrderedDict
-
-import cPickle as pickle
 
 from paegan.logger import logger
 
@@ -28,34 +23,100 @@ except:
     pass
 
 
+from tables import *
+
+
+# Pytables representation of a model run
+class ModelResultsTable(IsDescription):
+    particle    = UInt8Col()
+    time        = Time32Col()
+    latitude    = Float32Col()
+    longitude   = Float32Col()
+    depth       = Float32Col()
+    u_vector    = Float32Col()
+    v_vector    = Float32Col()
+    w_vector    = Float32Col()
+    temperature = Float32Col()
+    salinity    = Float32Col()
+    age         = Float32Col()
+    lifestage   = UInt8Col()
+    progress    = Float32Col()
+    settled     = BoolCol()
+    halted      = BoolCol()
+    dead        = BoolCol()
+
+
+class ResultsPyTable(object):
+    def __init__(self, output_file):
+        self._file  = open_file(output_file, mode="w", title="Model run output")
+        self._root  = self._file.create_group("/", "trajectories", "Trajectory Data")
+        self._table = self._file.create_table(self._root, "model_results", ModelResultsTable, "Model Results")
+        self._table.autoindex = False
+        self._table.cols.particle.create_index()
+        self._table.cols.time.create_index()
+        self._table.cols.latitude.create_index()
+        self._table.cols.longitude.create_index()
+
+    def write(self, data):
+        record = self._table.row
+        for k, v in data.iteritems():
+            try:
+                record[k] = v
+            except Exception:
+                # No column named "k", so don't add the data
+                pass
+
+        record.append()
+
+    def trackline(self):
+        pass
+
+    def metadata(self):
+        pass
+
+    def compute(self):
+        self.trackline()
+        self.metadata()
+
+    def close(self):
+        self._table.flush()
+        self._table.reindex()
+        self._file.close()
+
+
 class Export(object):
     @classmethod
     def export(cls, **kwargs):
         raise("Please implement the export method of your Export class.")
 
 
-class Trackline(Export):
+class H5TracklineWithPoints(Export):
     @classmethod
-    def export(cls, folder, particles, datetimes):
-        """
-            Export trackline data to GeoJSON file
-        """
-        normalized_locations = [particle.normalized_locations(datetimes) for particle in particles]
+    def export(cls, folder, h5_file):
+        with tables.open_file(h5_file, mode="r") as h5:
+            table = h5.root.trajectories.model_results
+            timestamps = sorted(list(set([ x["time"] for x in table.iterrows() ])))
 
-        track_coords = []
-        for x in xrange(0, len(datetimes)):
-            points = MultiPoint([loc[x].point.coords[0] for loc in normalized_locations])
-            track_coords.append(points.centroid.coords[0])
+            pts = []
+            features = []
+            for i, ts in enumerate(timestamps):
+                points = MultiPoint([ Point(x['longitude'], x['latitude']) for x in table.where("""time == %s""" % ts) if x["latitude"] and x["longitude"] ])
+                cp = points.centroid.coords[0]
+                geo_pt = geojson.Point(cp)
+                pts.append(cp)
+                feat = geojson.Feature(id=i, geometry=geo_pt, properties={ "time" : datetime.utcfromtimestamp(ts).replace(tzinfo=pytz.utc).isoformat() })
+                features.append(feat)
 
-        ls = LineString(track_coords)
+            geo_ls = geojson.LineString(pts)
+            features.append(geojson.Feature(geometry=geo_ls, id='path'))
 
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        filepath = os.path.join(folder, "trackline.geojson")
-        f = open(filepath, "wb")
-        f.write(json.dumps(mapping(ls)))
-        f.close()
-        return filepath
+            fc = geojson.FeatureCollection(features)
+
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            filepath = os.path.join(folder, "full_trackline.geojson")
+            with open(filepath, "wb") as r:
+                r.write(geojson.dumps(fc))
 
 
 class H5Trackline(Export):
@@ -65,20 +126,18 @@ class H5Trackline(Export):
             table = h5.root.trajectories.model_results
             timestamps = sorted(list(set([ x["time"] for x in table.iterrows() ])))
 
-            features = []
-            for ts in timestamps:
+            pts = []
+            for i, ts in enumerate(timestamps):
                 points = MultiPoint([ Point(x['longitude'], x['latitude']) for x in table.where("""time == %s""" % ts) if x["latitude"] and x["longitude"] ])
-                geo_pt = geojson.Point(points.centroid.coords[0])
-                feat = geojson.Feature(geometry=geo_pt, properties={ "time" : datetime.utcfromtimestamp(ts).replace(tzinfo=pytz.utc).isoformat() })
-                features.append(feat)
-
-            fc = geojson.FeatureCollection(features)
+                pts.append(points.centroid.coords[0])
+            geo_ls = geojson.LineString(pts)
+            feat = geojson.Feature(geometry=geo_ls, id='path')
 
             if not os.path.exists(folder):
                 os.makedirs(folder)
-            filepath = os.path.join(folder, "center_trackline.geojson")
+            filepath = os.path.join(folder, "simple_trackline.geojson")
             with open(filepath, "wb") as r:
-                r.write(geojson.dumps(fc))
+                r.write(geojson.dumps(feat))
 
 
 class H5ParticleTracklines(Export):
@@ -131,141 +190,6 @@ class H5ParticleMultiPoint(Export):
             filepath = os.path.join(folder, "particle_multipoint.geojson")
             with open(filepath, "wb") as r:
                 r.write(geojson.dumps(fc))
-
-
-class GDALShapefile(Export):
-    @classmethod
-    def export(cls, folder, particles, datetimes):
-
-        shape_schema = {'geometry': 'Point',
-                        'properties': OrderedDict([('particle',     'int'),
-                                                   ('date',         'str'),
-                                                   ('latitude',     'float'),
-                                                   ('longitude',    'float'),
-                                                   ('depth',        'float'),
-                                                   ('u_vector',     'float'),
-                                                   ('v_vector',     'float'),
-                                                   ('w_vector',     'float'),
-                                                   ('temp',         'float'),
-                                                   ('salinity',     'float'),
-                                                   ('age',          'float'),
-                                                   ('settled',      'str'),
-                                                   ('dead',         'str'),
-                                                   ('halted',       'str'),
-                                                   ('notes',        'str')])}
-        shape_crs = {'no_defs': True, 'ellps': 'WGS84', 'datum': 'WGS84', 'proj': 'longlat'}
-
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        filepath = os.path.join(folder, "gdalshape.shp")
-
-        with collection(filepath, "w", driver='ESRI Shapefile', schema=shape_schema, crs=shape_crs) as shape:
-
-            for particle in particles:
-                normalized_locations = particle.normalized_locations(datetimes)
-                normalized_temps = particle.temps
-                normalized_salts = particle.salts
-                normalized_u = particle.u_vectors
-                normalized_v = particle.v_vectors
-                normalized_w = particle.w_vectors
-                normalized_settled = particle.settles
-                normalized_dead = particle.deads
-                normalized_halted = particle.halts
-                normalized_ages = particle.ages
-                normalized_notes = particle.notes
-
-                if len(normalized_locations) != len(normalized_temps):
-                    logger.info("No temperature being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_temps = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_temps = (-9999.9 if not x else x for x in normalized_temps)
-
-                if len(normalized_locations) != len(normalized_salts):
-                    logger.info("No salinity being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_salts = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_salts = (-9999.9 if not x else x for x in normalized_salts)
-
-                if len(normalized_locations) != len(normalized_u):
-                    logger.info("No U being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_u = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_u = (-9999.9 if not x else x for x in normalized_u)
-
-                if len(normalized_locations) != len(normalized_v):
-                    logger.info("No V being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_v = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_v = (-9999.9 if not x else x for x in normalized_v)
-
-                if len(normalized_locations) != len(normalized_w):
-                    logger.info("No W being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_w = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_w = (-9999.9 if not x else x for x in normalized_w)
-
-                if len(normalized_locations) != len(normalized_settled):
-                    logger.info("No Settled being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_settled = [None] * len(normalized_locations)
-
-                if len(normalized_locations) != len(normalized_dead):
-                    logger.info("No Dead being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_dead = [None] * len(normalized_locations)
-
-                if len(normalized_locations) != len(normalized_halted):
-                    logger.info("No Halted being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_halted = [None] * len(normalized_locations)
-
-                if len(normalized_locations) != len(normalized_ages):
-                    logger.info("No W being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_ages = [-9999.9] * len(normalized_locations)
-                else:
-                    # Replace any None with fill value
-                    normalized_ages = (-9999.9 if not x else round(x, 3) for x in normalized_ages)
-
-                if len(normalized_locations) != len(normalized_notes):
-                    logger.info("No Notes being added to shapefile.")
-                    # Create list of 'None' equal to the length of locations
-                    normalized_notes = [None] * len(normalized_locations)
-
-                for loc, temp, salt, u, v, w, settled, dead, halted, age, note in zip(normalized_locations, normalized_temps, normalized_salts, normalized_u, normalized_v, normalized_w, normalized_settled, normalized_dead, normalized_halted, normalized_ages, normalized_notes):
-                    shape.write({   'geometry': mapping(loc.point),
-                                    'properties': OrderedDict([('particle', particle.uid),
-                                                               ('date', unicode(loc.time.isoformat())),
-                                                               ('latitude', float(loc.latitude)),
-                                                               ('longitude', float(loc.longitude)),
-                                                               ('depth', float(loc.depth)),
-                                                               ('temp', float(temp)),
-                                                               ('salinity', float(salt)),
-                                                               ('u_vector', float(u)),
-                                                               ('v_vector', float(v)),
-                                                               ('w_vector', float(w)),
-                                                               ('settled', unicode(settled)),
-                                                               ('dead', unicode(dead)),
-                                                               ('halted', unicode(halted)),
-                                                               ('age', float(age)),
-                                                               ('notes' , unicode(note))])})
-
-        # Zip the output
-        shpzip = zipfile.ZipFile(os.path.join(folder, "shapefile.shp.zip"), mode='w')
-        for f in glob.glob(os.path.join(folder, "gdalshape*")):
-            shpzip.write(f, os.path.basename(f))
-            os.remove(f)
-        shpzip.close()
 
 
 class H5GDALShapefile(Export):
@@ -490,25 +414,3 @@ class NetCDF(Export):
 
         nc.sync()
         nc.close()
-
-
-class Pickle(Export):
-    @classmethod
-    def export(cls, folder, particles, datetimes):
-        """
-            Export particle and datetime data to Pickled objects.
-            This can be used to debug or to generate different output
-            in the future.
-        """
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-
-        particle_path = os.path.join(folder, 'particles.pickle')
-        f = open(particle_path, "wb")
-        pickle.dump(particles, f)
-        f.close()
-
-        datetimes_path = os.path.join(folder, 'datetimes.pickle')
-        f = open(datetimes_path, "wb")
-        pickle.dump(datetimes, f)
-        f.close()

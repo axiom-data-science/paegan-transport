@@ -1,6 +1,21 @@
 import calendar
 from shapely.geometry import LineString
 
+
+def or_none(func):
+    try:
+        return func()
+    except BaseException:
+        return None
+
+
+def index_or_none(lst, index):
+    try:
+        return lst[index]
+    except IndexError:
+        return None
+
+
 class Particle(object):
     """
         A particle
@@ -10,7 +25,7 @@ class Particle(object):
         self._locations = []
 
         self._age = 0. # Age in days
-        self._ages = [0.] # Age in days   
+        self._ages = [0.] # Ages in days
 
         self._u = None
         self._us = []
@@ -98,10 +113,10 @@ class Particle(object):
     u_vectors = property(get_u_vectors, None)
     def last_u(self):
         try:
-            return self.u_vectors[-1]
-        except IndexError:
+            return float(self.u_vectors[-1])
+        except (IndexError, TypeError):
             return None
-    
+
     def set_v_vector(self, v):
         self._v = v
     def get_v_vector(self):
@@ -112,8 +127,8 @@ class Particle(object):
     v_vectors = property(get_v_vectors, None)
     def last_v(self):
         try:
-            return self.v_vectors[-1]
-        except IndexError:
+            return float(self.v_vectors[-1])
+        except (IndexError, TypeError):
             return None
 
     def set_w_vector(self, w):
@@ -126,9 +141,9 @@ class Particle(object):
     w_vectors = property(get_w_vectors, None)
     def last_w(self):
         try:
-            return self.w_vectors[-1]
-        except IndexError:
-            return None    
+            return float(self.w_vectors[-1])
+        except (IndexError, TypeError):
+            return None
 
     def get_ages(self):
         return self._ages
@@ -146,7 +161,7 @@ class Particle(object):
         try:
             return self.notes[-1]
         except IndexError:
-            return ""  
+            return ""
 
     def proceed(self):
         """
@@ -197,7 +212,7 @@ class Particle(object):
                 z = self._age * 24. * 60. * 60.
             else:
                 raise
-            return round(z,8) 
+            return round(z,8)
         except StandardError:
             raise KeyError("Could not return age of particle")
 
@@ -213,18 +228,15 @@ class Particle(object):
         """
         if kwargs.get('days', None) is not None:
             self._age += kwargs.get('days')
-            return
-        if kwargs.get('hours', None) is not None:
+        elif kwargs.get('hours', None) is not None:
             self._age += kwargs.get('hours') / 24.
-            return
-        if kwargs.get('minutes', None) is not None:
+        elif kwargs.get('minutes', None) is not None:
             self._age += kwargs.get('minutes') / 24. / 60.
-            return
-        if kwargs.get('seconds', None) is not None:
+        elif kwargs.get('seconds', None) is not None:
             self._age += kwargs.get('seconds') / 24. / 60. / 60.
-            return
-
-        raise KeyError("Could not age particle, please specify 'days', 'hours', 'minutes', or 'seconds' parameter")
+        else:
+            raise KeyError("Could not age particle, please specify 'days', 'hours', 'minutes', or 'seconds' parameter")
+        return
 
     def linestring(self):
         return LineString(map(lambda x: list(x.point.coords)[0], self.locations))
@@ -240,7 +252,7 @@ class Particle(object):
         in output, as we should only be outputting the model timestep
         that was chosen to be run.
 
-        In most cases, the length of the model_timesteps and the 
+        In most cases, the length of the model_timesteps and the
         particle's locations will be the same (unless it hits shore).
 
         If they are not the same length pull out of locations the timesteps
@@ -248,7 +260,7 @@ class Particle(object):
         """
 
         # Clean up locations
-        # If duplicate time instances, remove the lower index 
+        # If duplicate time instances, remove the lower index
         clean_locs = []
         for i,loc in enumerate(self.locations):
             try:
@@ -267,7 +279,7 @@ class Particle(object):
             indexes = [ind for ind,loc in enumerate(self.locations) if loc in clean_locs]
             if len(model_timesteps) == len(indexes):
                 return indexes
-            raise ValueError("Can't normalize")           
+            raise ValueError("Can't normalize")
         elif len(model_timesteps) > len(clean_locs):
             # The particle stopped before forcing for all of the model timesteps
             raise ValueError("Particle has less locations than model timesteps")
@@ -284,6 +296,21 @@ class Particle(object):
                  "halted"    : self.halted,
                  "age"       : self.get_age(units='days') }
 
+    def timestep_index_dump(self, index):
+
+        loc = index_or_none(self.locations, index)
+
+        return { "particle"  : self.uid,
+                 "u_vector"  : index_or_none(self.u_vectors, index),
+                 "v_vector"  : index_or_none(self.v_vectors, index),
+                 "w_vector"  : index_or_none(self.w_vectors, index),
+                 "time"      : calendar.timegm(loc.time.utctimetuple()) if loc else None,
+                 "latitude"  : loc.latitude if loc else None,
+                 "longitude" : loc.longitude if loc else None,
+                 "depth"     : loc.depth if loc else None,
+                 "halted"    : index_or_none(self.halts, index),
+                 "age"       : index_or_none(self.ages, index)}
+
 
 class LarvaParticle(Particle):
     """
@@ -293,6 +320,7 @@ class LarvaParticle(Particle):
     def __init__(self, **kwargs):
         super(LarvaParticle,self).__init__(**kwargs)
         self.lifestage_progress = 0.
+        self.lifestage_progresses = [0.]
 
         self._temp = None
         self._temps = []
@@ -317,10 +345,10 @@ class LarvaParticle(Particle):
     temps = property(get_temps, None)
     def last_temp(self):
         try:
-            return self.temps[-1]
-        except IndexError:
+            return float(self.temps[-1])
+        except (IndexError, TypeError):
             return None
-    
+
     # Salt
     def set_salt(self, salt):
         self._salt = salt
@@ -332,10 +360,10 @@ class LarvaParticle(Particle):
     salts = property(get_salts, None)
     def last_salt(self):
         try:
-            return self.salts[-1]
-        except IndexError:
+            return float(self.salts[-1])
+        except (IndexError, TypeError):
             return None
-    
+
     def get_lifestage_index(self):
         return int(self.lifestage_progress)
     lifestage_index = property(get_lifestage_index, None)
@@ -371,6 +399,8 @@ class LarvaParticle(Particle):
         self.settles.append(self.settled)
         self.temps.append(self.temp)
         self.salts.append(self.salt)
+
+        self.ages.append(self.get_age(units='days'))
 
         self.temp = None
         self.salt = None
@@ -412,13 +442,14 @@ class LarvaParticle(Particle):
         """
         Grow a particle by a percentage value (0 < x < 1)
 
-        When a particle grows past 1, its current lifestage is 
+        When a particle grows past 1, its current lifestage is
         complete and it moves onto the next.
 
         The calculation to get the current lifestage index is in get_lifestage_index()
         """
         self.lifestage_progress += amount
-        
+        self.lifestage_progresses.append(self.lifestage_progress)
+
     def logstring(self):
         return "Particle %d (Age: %.3f days, Lifestage %d: %.3f%%, Status: %s)" % (self.uid, self.get_age(units='days'), self.lifestage_index, (self.lifestage_progress % 1) * 100., self.status())
 
@@ -439,6 +470,25 @@ class LarvaParticle(Particle):
         master.update(super(LarvaParticle, self).timestep_dump())
         return master
 
+    def timestep_index_dump(self, index):
+
+        try:
+            ls = int(self.lifestage_progresses[index])
+            lp = (self.lifestage_progresses[index] % 1) * 100
+        except IndexError:
+            ls = None
+            lp = None
+
+        master = { "temperature" : index_or_none(self.temps, index),
+                   "salinity"    : index_or_none(self.salts, index),
+                   "dead"        : index_or_none(self.deads, index),
+                   "settled"     : index_or_none(self.settles, index),
+                   "lifestage"   : ls,
+                   "progress"    : lp }
+        master.update(super(LarvaParticle, self).timestep_index_dump(index))
+        return master
+
+
 class ChemistryParticle(Particle):
     """
         A chemical particle for time and chemistry dependent
@@ -446,7 +496,7 @@ class ChemistryParticle(Particle):
     """
     def __init__(self):
         pass
-        
+
 
 class OilParticle(Particle):
     """
