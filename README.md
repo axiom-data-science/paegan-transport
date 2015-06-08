@@ -60,6 +60,6 @@ Some tests require large files that are not in source control.  You can get them
 
 Contributors
 ----------------
-* Kyle Wilcox <kwilcox@axiomdatascience.com>
-* Alex Crosby <crosbyar@gmail.com>
-* Dave Foster <dfoster@axiomdatascience.com>
+* Kyle Wilcox <kyle@axiomdatascience.com> - [@kwilcox](http://github.com/kwilcox)
+* Alex Crosby <crosbyar@gmail.com> - [@acrosby](http://github.com/acrosby)
+* Dave Foster <dave@axiomdatascience.com>
