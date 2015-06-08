@@ -17,12 +17,7 @@ from paegan.logger import logger
 
 import geojson
 
-try:
-    import tables
-except:
-    pass
-
-
+import tables
 from tables import *
 
 
