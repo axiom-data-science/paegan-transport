@@ -18,7 +18,6 @@ from paegan.transport.bathymetry import Bathymetry
 from paegan.transport.exceptions import CachingDataControllerError
 
 from paegan.cdm.dataset import CommonDataset
-from paegan.cdm.timevar import date2num
 
 from paegan.transport.forcers import BaseForcer
 
@@ -119,7 +118,7 @@ class CachingDataController(object):
             with remote data
         """
         # If user specifies 'all' then entire xy domain is
-        # grabbed, default is 4, specified in the model_controller
+        # grabbed, default is 4, specified in the model controller
         if self.horiz_size == 'all':
             y, y_1 = 0, shape[-2]
             x, x_1 = 0, shape[-1]

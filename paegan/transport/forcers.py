@@ -16,9 +16,9 @@ from paegan.transport.bathymetry import Bathymetry
 from paegan.cdm.dataset import CommonDataset
 from paegan.cdm.timevar import date2num
 
-from paegan.logger import logger
-
 import redis
+
+from paegan.logger import logger
 
 
 class BaseForcer(object):
@@ -276,7 +276,7 @@ class BaseForcer(object):
         self.load_initial_dataset()
 
         redis_connection = None
-        if self.redis_url is not None:
+        if self.redis_url is not None and self.redis_results_channel is not None:
             redis_connection = redis.from_url(self.redis_url)
 
         # Setup shoreline
@@ -315,6 +315,11 @@ class BaseForcer(object):
         tot_read_data     = 0.
         for m in self.models:
             tot_model_time[m.name] = 0.
+
+        # Set the base conditions
+        # If using Redis, send the results
+        if redis_connection is not None:
+            redis_connection.publish(self.redis_results_channel, json.dumps(self.particle.timestep_dump()))
 
         # loop over timesteps
         # We don't loop over the last time_index because
@@ -377,7 +382,7 @@ class BaseForcer(object):
         self.dataset.closenc()
 
         # We won't pull data for the last entry in locations, but we need to populate it with fill data.
-        self.particle.fill_environment_gap()
+        self.particle.fill_gap()
 
         if self.usebathy is True:
             self._bathymetry.close()
