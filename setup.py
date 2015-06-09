@@ -13,17 +13,17 @@ reqs = [line.strip() for line in open('requirements.txt')]
 
 setup(
     namespace_packages = ['paegan'],
-    name                = "paegan-transport",
-    version             = __version__,
-    description         = "Particle transport packages for the Paegan library",
-    long_description    = readme,
-    license             = 'GPLv3',
-    author              = "Kyle Wilcox",
-    author_email        = "kwilcox@sasascience.com",
-    url                 = "https://github.com/asascience-open/paegan-transport",
-    packages            = find_packages(),
-    install_requires    = reqs,
-    classifiers         = [
+    name               = "paegan-transport",
+    version            = __version__,
+    description        = "Particle transport packages for the Paegan library",
+    long_description   = readme(),
+    license            = 'GPLv3',
+    author             = "Kyle Wilcox",
+    author_email       = "kyle@axiomdatascience.com",
+    url                = "https://github.com/axiom-data-science/paegan-transport",
+    packages           = find_packages(),
+    install_requires   = reqs,
+    classifiers        = [
             'Development Status :: 3 - Alpha',
             'Intended Audience :: Developers',
             'Intended Audience :: Science/Research',
