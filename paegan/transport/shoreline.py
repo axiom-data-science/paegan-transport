@@ -337,7 +337,7 @@ class ShorelineFile(Shoreline):
         with LatLongBoundingBox and Name keys defined.
         """
         d = {}
-        d['LatLongBoundingBox'] = self._source.bounds
+        d['LatLongBoundingBox'] = box(*self._source.bounds)
         d['Name']               = self._file.split('/')[-1].split('.')[0]
 
         return d
