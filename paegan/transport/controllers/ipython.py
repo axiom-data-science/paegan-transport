@@ -9,7 +9,6 @@ class IPythonClusterModelController(BaseModelController):
 
     def listen_for_results(self, output_h5_file, total_particles):
         logger.info("Waiting for %i particle results" % total_particles)
-        logger.progress((5, "Running model"))
 
         particles = []
         retrieved = 0
@@ -73,6 +72,7 @@ class IPythonClusterModelController(BaseModelController):
                                     shoreline_index_buffer=self.shoreline_index_buffer)
                 tasks.append(forcer)
 
+            logger.progress((5, 'Running model'))
             return self.pool.map_async(Runner(), tasks)
 
         except Exception:

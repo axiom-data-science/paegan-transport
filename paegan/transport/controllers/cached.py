@@ -74,6 +74,7 @@ class CachingModelController(BaseModelController):
             # Create workers for the particles.
             self.procs = [Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, self.get_data, name="CachingForcer-%d" % i)
                           for i in xrange(self.nproc - 1) ]
+            logger.progress((5, 'Running model'))
             for w in self.procs:
                 w.start()
                 logger.info('Started %s' % w.name)
@@ -165,7 +166,6 @@ class CachingModelController(BaseModelController):
             self.error_code = 0
 
             logger.info("Waiting for %i particle results" % total_particles)
-            logger.progress((5, "Running model"))
             while retrieved < self.total_task_count():  # One for the CachingDataController
 
                 logger.info("looping in listen_for_results")

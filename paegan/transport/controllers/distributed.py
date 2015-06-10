@@ -58,12 +58,11 @@ class DistributedModelController(BaseModelController):
         self.thread_result_listener = True
 
     def start_tasks(self, **kwargs):
-
+        logger.progress((5, 'Running model'))
         rc = redis.from_url(self.redis_url)
         if kwargs.get('task_queue_call'):
             for p in self.particles:
                 try:
-                    #actual_args = kwargs.get('task_queue_args') + [p] + [self]
                     kwargs.get('task_queue_call')(func=particle_runner, args=(p, self,))
                 except Exception:
                     logger.exception(traceback.format_exc())
