@@ -5,6 +5,8 @@ import time
 import json
 import logging
 
+import textwrap
+
 import numpy as np
 
 from paegan.location4d import Location4D
@@ -390,10 +392,10 @@ class BaseForcer(object):
         if self.useshore is True:
             self._shoreline.close()
 
-        logger.info("""Particle %i Stats: \
-                          Data read: %f \
-                          Model forcing: %s \
-                          Boundary intersection: %f""" % (self.particle.uid, tot_read_data, tot_model_time, tot_boundary_time))
+        logger.info(textwrap.dedent('''Particle %i Stats:
+                          Data read: %f seconds
+                          Model forcing: %s seconds
+                          Boundary intersection: %f seconds''' % (self.particle.uid, tot_read_data, { s: '{:g} seconds'.format(f) for s, f in tot_model_time.items() }, tot_boundary_time)))
 
         return self.particle
 
