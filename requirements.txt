@@ -3,4 +3,5 @@ requests>=1.2.3
 paegan>=1.1.2
 redis
 geojson
+pytables # for export
 gj2ascii  # For tests
