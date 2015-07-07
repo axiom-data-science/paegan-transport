@@ -18,8 +18,6 @@ from paegan.transport.bathymetry import Bathymetry
 from paegan.cdm.dataset import CommonDataset
 from paegan.cdm.timevar import date2num
 
-import redis
-
 from paegan.logger import logger
 
 
@@ -279,6 +277,7 @@ class BaseForcer(object):
 
         redis_connection = None
         if self.redis_url is not None and self.redis_results_channel is not None:
+            import redis
             redis_connection = redis.from_url(self.redis_url)
 
         # Setup shoreline
