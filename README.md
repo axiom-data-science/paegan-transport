@@ -25,7 +25,6 @@ pip install paegan-transport
 
 Paegan-Transport requires the following python libraries which will be downloaded and installed through `pip`:
 
-* GDAL>=1.9.1
 * Fiona>=0.8
 * requests>=1.2.3
 * paegan
