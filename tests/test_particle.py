@@ -17,8 +17,8 @@ class ParticleTest(unittest.TestCase):
         assert (-76, 38, 0) == result[0]
         assert (-75, 39, 1) == result[1]
         assert (-74, 40, 2) == result[2]
-        
-    def test_particle_linestring_length(self):      
+
+    def test_particle_linestring_length(self):
         assert(len(list(self.p.linestring().coords))) == 3
         self.p.location= Location4D(latitude=39, longitude=-75, depth=1)
         assert(len(list(self.p.linestring().coords))) == 4
@@ -35,7 +35,7 @@ class ParticleTest(unittest.TestCase):
         self.p.age(days=1)
         assert self.p.get_age(units='minutes') == 24 * 60
         assert self.p.get_age() == 1
-        
+
         self.p.age(days=1)
         assert self.p.get_age(units='hours') == 48
         assert self.p.get_age() == 2
@@ -52,11 +52,11 @@ class ParticleTest(unittest.TestCase):
         p.location = Location4D(latitude=101, longitude=-101, depth=0, time=dt)
         p.location = last_real_movement
 
-        for x in xrange(1,10):
+        for x in range(1,10):
             norm = (dt + timedelta(hours=x)).replace(tzinfo=pytz.utc)
             norms.append(norm)
             p.location = Location4D(latitude=38 + x, longitude=-76 + x, depth=x, time=norm)
-            
+
         locs = p.normalized_locations(norms)
         assert locs[0] == last_real_movement
 
@@ -82,4 +82,3 @@ class LarvaParticleTest(unittest.TestCase):
         self.p.grow(1.6)
         assert self.p.lifestage_progress == 3.1
         assert self.p.lifestage_index == 3
-        

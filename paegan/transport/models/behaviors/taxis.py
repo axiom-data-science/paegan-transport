@@ -1,18 +1,23 @@
+try:
+    from __builtin__ import unicode as str
+except ImportError:
+    pass
+
 import json
 from paegan.transport.models.base_model import BaseModel
 
 class Taxis(BaseModel):
 
     def __init__(self, **kwargs):
-        
+
         if 'json' in kwargs or 'data' in kwargs:
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
             # Convert from positive down to negative down
@@ -49,7 +54,7 @@ class Taxis(BaseModel):
     def get_units(self):
         return self._units
     def set_units(self, units):
-        self._units = unicode(units)
+        self._units = str(units)
     units = property(get_units, set_units)
 
     def __str__(self):
@@ -71,7 +76,7 @@ class Taxis(BaseModel):
         # If the particle is halted (but not settled), don't move it anywhere
         if particle.halted:
             return { 'u': 0, 'v': 0, 'w': 0 }
-        
+
         u = 0
         v = 0
         w = 0

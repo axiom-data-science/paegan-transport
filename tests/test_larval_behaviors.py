@@ -2,7 +2,10 @@ import unittest
 from paegan.transport.models.transport import Transport
 import os
 import json
-import urllib
+try:
+    from urllib import urlopen
+except ImportError:
+    from urllib.request import urlopen
 from datetime import datetime
 import logging
 from paegan.logger.easy_logger import EasyLogger
@@ -125,7 +128,7 @@ class LarvalBehaviourTest(unittest.TestCase):
         num_particles = 100
         time_step = 3600
 
-        behavior_config = json.loads(urllib.urlopen("http://behaviors.larvamap.asascience.com/library/50ef1bb1cc7b61000700001d.json").read())
+        behavior_config = json.loads(urlopen("http://behaviors.larvamap.asascience.com/library/50ef1bb1cc7b61000700001d.json").read())
         lb = LarvaBehavior(data=behavior_config[u'results'][0])
 
         models = [Transport(horizDisp=0.01, vertDisp=0.001)]
@@ -172,7 +175,7 @@ class LarvalBehaviourTest(unittest.TestCase):
 
         time_step = 3600
 
-        behavior_config = json.loads(urllib.urlopen("http://behaviors.larvamap.asascience.com/library/50ef1bb1cc7b61000700001d.json").read())
+        behavior_config = json.loads(urlopen("http://behaviors.larvamap.asascience.com/library/50ef1bb1cc7b61000700001d.json").read())
         lb = LarvaBehavior(data=behavior_config[u'results'][0])
 
         models = [Transport(horizDisp=0.01, vertDisp=0.001)]

@@ -26,10 +26,10 @@ class Diel(BaseModel):
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
             self.pattern = data.get('type',None)

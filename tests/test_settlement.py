@@ -14,7 +14,7 @@ class SettlementTest(unittest.TestCase):
         temp_time = datetime.utcnow()
         self.start_time = datetime(temp_time.year, temp_time.month, temp_time.day, temp_time.hour)
         # 48 timesteps at an hour each = 2 days of running
-        self.times = range(0,172800,3600) # in seconds
+        self.times = list(range(0,172800,3600)) # in seconds
 
     def test_from_json(self):
         d = Settlement(json=self.data)
@@ -78,4 +78,4 @@ class SettlementTest(unittest.TestCase):
         settle.attempt(particle, -400)
         # We should have settled, but not moved anywhere
         assert len(particle.locations) == 1
-        assert particle.settled    
+        assert particle.settled

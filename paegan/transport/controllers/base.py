@@ -1,3 +1,8 @@
+try:
+    from __builtin__ import unicode as str
+except:
+    pass
+
 import os
 import time
 import pytz
@@ -107,7 +112,7 @@ class BaseModelController(object):
         # Errors
         try:
             self._nstep = kwargs.pop('nstep')
-        except StandardError:
+        except Exception:
             logger.exception("Must provide the number of timesteps to the ModelController")
             raise
 
@@ -279,16 +284,16 @@ class BaseModelController(object):
         time.sleep(0.5)
 
         # Add ModelController description to logfile
-        logger.info(unicode(self))
+        logger.info(str(self))
 
         # Add the model descriptions to logfile
         for m in self._models:
-            logger.info(unicode(m))
+            logger.info(str(m))
 
         # Calculate the model timesteps
         # We need times = len(self._nstep) + 1 since data is stored one timestep
         # after a particle is forced with the final timestep's data.
-        self.times = range(0, (self._step*self._nstep)+1, self._step)
+        self.times = list(range(0, (self._step*self._nstep)+1, self._step))
         # Calculate a datetime object for each model timestep
         # This method is duplicated in CachingDataController and CachingForcer
         # using the 'times' variables above.  Will be useful in those other
@@ -305,7 +310,7 @@ class BaseModelController(object):
 
         # Initialize the particles
         logger.progress((2, "Initializing particles"))
-        for x in xrange(0, self._npart):
+        for x in range(0, self._npart):
             p = LarvaParticle(id=x)
             p.location = point_locations[x]
             # We don't need to fill the location gaps here for environment variables
@@ -338,7 +343,7 @@ class BaseModelController(object):
 
             self.timevar = ds.gettimevar(self.common_variables.get("u"))
         except AssertionError:
-            logger.exception("Could not locate variables needed to run model: %s" % unicode(self.common_variables))
+            logger.exception("Could not locate variables needed to run model: %s" % str(self.common_variables))
             raise BaseDataControllerError("A required data variable was not found in %s" % self.hydrodataset)
 
         model_start = self.timevar.get_dates()[0]

@@ -2,7 +2,10 @@ import os
 import math
 import numpy as np
 import requests
-import urlparse
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
 import fiona
@@ -33,7 +36,7 @@ class Shoreline(object):
     """
     def __new__(cls, **kwargs):
         if 'path' in kwargs and kwargs['path'] is not None:
-            parsed = urlparse.urlparse(kwargs['path'])
+            parsed = urlparse(kwargs['path'])
             if parsed.scheme.startswith('http') and parsed.netloc:
                 return super(Shoreline, cls).__new__(ShorelineWFS, **kwargs)
 
@@ -61,11 +64,11 @@ class Shoreline(object):
         points = []
         for poly in self._geoms:
             plines = list(poly.exterior.coords)
-            for i in xrange(0, len(plines)-1):
+            for i in range(0, len(plines)-1):
                 points.append(Point(plines[i], plines[i+1]))
 
             points.append(Point(np.nan, np.nan))  # blank point needed to remove crossing of lines
-        return LineString(map(lambda x: list(x.coords)[0], points))
+        return LineString([list(x.coords)[0] for x in points])
 
     def get_capabilities(self):
         """
@@ -215,7 +218,7 @@ class Shoreline(object):
         angle = kwargs.pop('angle')
 
         # Figure out the angle of the shoreline here (beta)
-        points_in_shore = map(lambda x: Point(x), list(feature.coords))
+        points_in_shore = [Point(x) for x in list(feature.coords)]
         points_in_shore = sorted(points_in_shore, key=lambda x: x.x)
 
         # The point on the left (least longitude is always the first Point)
@@ -442,7 +445,7 @@ class ShorelineWFS(Shoreline):
                 d = {sube.tag[28:]:sube.text or sube.attrib or None for sube in e.getchildren()}
 
                 # transform LatLongBoundingBox into a Shapely box
-                llbb = {k:round(float(v), 4) for k,v in d['LatLongBoundingBox'].iteritems()}
+                llbb = {k:round(float(v), 4) for k,v in d['LatLongBoundingBox'].items()}
                 d['LatLongBoundingBox'] = box(llbb['minx'], llbb['miny'], llbb['maxx'], llbb['maxy'])
                 return d
 

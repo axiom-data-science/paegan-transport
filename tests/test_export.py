@@ -5,7 +5,7 @@ import paegan.transport.export as ex
 
 try:
     import tables
-except:
+except ImportError:
     warnings.warn("PyTables(HDF5) export tests will fail without Pytables installed (`pip install tables`)")
 
 

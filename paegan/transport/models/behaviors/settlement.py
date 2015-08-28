@@ -7,15 +7,15 @@ from paegan.location4d import Location4D
 class Settlement(object):
 
     def __init__(self, **kwargs):
-        
+
         if 'json' in kwargs or 'data' in kwargs:
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
             try:
@@ -23,7 +23,7 @@ class Settlement(object):
                 self.upper = data.get('upper') * -1.
                 self.lower = data.get('lower') * -1.
                 self.type = data.get('type')
-            except StandardError:
+            except Exception:
                 raise ValueError("A settlement must consist of a 'type' and 'upper / 'lower' bounds.")
 
     def attempt(self, particle, depth):
@@ -52,7 +52,7 @@ class Settlement(object):
                 logger.info("Particle %d settled in %s mode" % (particle.uid, self.type))
         elif self.type.lower() == "pelagic":
             # Are we are in enough water to settle
-            # Ignore this bathymetry test since we would need a high resolution 
+            # Ignore this bathymetry test since we would need a high resolution
             # dataset for this to work.
             #if self.upper >= depth:
 
@@ -63,7 +63,7 @@ class Settlement(object):
                 logger.info("Particle %d settled in %s mode" % (particle.uid, self.type))
             else:
                 logger.debug("Particle did NOT settle.  Depth conditions not met.  Upper limit: %d - Lower limit: %d - Particle: %d" % (self.upper, self.lower, particle.location.depth))
-                
+
             #else:
             #    logger.info("Particle did NOT settle.  Water not deep enough.  Upper limit: %d - Bathymetry: %d" % (self.upper, depth))
         else:
@@ -89,4 +89,3 @@ class Settlement(object):
         u,v,w = self.attempt(particle, bathymetry_value)
 
         return { 'u': u, 'v': v, 'w': w }
-        

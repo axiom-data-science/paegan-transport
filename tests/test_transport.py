@@ -16,21 +16,21 @@ class TransportTest(unittest.TestCase):
         temp_time = datetime.utcnow()
         self.start_time = datetime(temp_time.year, temp_time.month, temp_time.day, temp_time.hour)
         self.loc = Location4D(latitude=start_lat, longitude=start_lon, depth=start_depth, time=self.start_time)
-        
+
         # Generate time,u,v,z as randoms
         # 48 timesteps at an hour each = 2 days of running
-        self.times = range(0,172800,3600) # in seconds
+        self.times = list(range(0,172800,3600)) # in seconds
         self.u = []
         self.v = []
         self.z = []
-        for w in xrange(0,48):
+        for w in range(0,48):
             self.z.append(random.gauss(0,0.0001)) # gaussian in m/s
             self.u.append(abs(AsaRandom.random())) # random function in m/s
             self.v.append(abs(AsaRandom.random())) # random function in m/s
 
         self.particles = []
         # Create particles
-        for i in xrange(0,3):
+        for i in range(0,3):
             p = Particle()
             p.location = self.loc
             self.particles.append(p)
@@ -41,11 +41,11 @@ class TransportTest(unittest.TestCase):
     def test_moving_particle(self):
 
         for p in self.particles:
-            for i in xrange(0, len(self.times)):
+            for i in range(0, len(self.times)):
                 try:
                     modelTimestep = self.times[i+1] - self.times[i]
                     calculatedTime = self.times[i+1]
-                except StandardError:
+                except Exception:
                     modelTimestep = self.times[i] - self.times[i-1]
                     calculatedTime = self.times[i] + modelTimestep
 
@@ -55,7 +55,7 @@ class TransportTest(unittest.TestCase):
                 movement = self.transport_model.move(p, self.u[i], self.v[i], self.z[i], modelTimestep)
                 newloc = Location4D(latitude=movement['latitude'], longitude=movement['longitude'], depth=movement['depth'], time=newtime)
                 p.location = newloc
-            
+
         for p in self.particles:
             # Particle should move every timestep
             assert len(p.locations) == len(self.times) + 1

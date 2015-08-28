@@ -10,10 +10,10 @@ class LarvaBehavior(BaseModel):
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
         self.lifestages = []
@@ -32,7 +32,7 @@ class LarvaBehavior(BaseModel):
             # The particle should never progress outside of the available lifestages because a Dead
             # particle should not progress and the last lifestage is the DeadLifeStage.
             raise
-        
+
         return lifestage.move(particle, u, v, w, modelTimestep, **kwargs)
 
     def __str__(self):

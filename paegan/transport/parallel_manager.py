@@ -1,9 +1,16 @@
+try:
+    from __builtin__ import unicode as str
+except ImportError:
+    pass
 import os
 import sys
 import time as timer
 import math
 import traceback
-import Queue
+try:
+    import Queue as queue
+except ImportError:
+    import queue
 import logging
 import multiprocessing
 
@@ -324,7 +331,7 @@ class CachingDataController(object):
                             except AssertionError:
                                 raise
                             except:
-                                logger.warn("CachingDataController failed to get remote data.  Trying again in 20 seconds. %s attemps left." % unicode(max_attempts-current_attempt))
+                                logger.warn("CachingDataController failed to get remote data.  Trying again in 20 seconds. %s attempts left." % str(max_attempts-current_attempt))
                                 logger.exception("Data Access Error")
                                 timer.sleep(20)
                                 current_attempt += 1
@@ -332,7 +339,7 @@ class CachingDataController(object):
                                 break
 
                         c += 1
-                    except (StandardError, AssertionError):
+                    except (Exception, AssertionError):
                         logger.error("CachingDataController failed to get data (first request)")
                         raise
                     finally:
@@ -402,7 +409,7 @@ class CachingDataController(object):
                                 break
 
                         c += 1
-                    except StandardError:
+                    except Exception:
                         logger.error("CachingDataController failed to get data (not first request)")
                         raise
                     finally:
