@@ -5,7 +5,10 @@ import logging
 import multiprocessing
 import traceback
 from datetime import datetime
-from urlparse import urlparse
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
 from paegan.transport.forcers import BaseForcer
 from paegan.transport.controllers import BaseModelController, Runner

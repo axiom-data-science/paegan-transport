@@ -11,7 +11,7 @@ class SunCycles(object):
     @classmethod
     def cycles(cls, **kwargs):
         """
-        Classmethod for convienence in returning both the sunrise and sunset
+        Classmethod for convenience in returning both the sunrise and sunset
         based on a location and date.  Always calculates the sunrise and sunset on the
         given date, no matter the time passed into the function in the datetime object.
 
@@ -64,7 +64,7 @@ class SunCycles(object):
         # We ALWAYS want to return the sunrise/sunset for the day that was passed
         # in (with timezone accounted for), regardless of what the UTC day is.  Modify
         # the UTC julian day here if need be.
-        comp = cmp(utc_jd, local_jd)
+        comp = (utc_jd > local_jd) - (utc_jd < local_jd)
         if comp == 1:
             utc_jd -= 1
         elif comp == -1:
@@ -97,7 +97,7 @@ class SunCycles(object):
             lon: longitude
             stage: sunrise or sunset
         """
-        zenith = 90.833333 # offical value
+        zenith = 90.833333 # official value
 
         jd = kwargs.get("jd", None)
         lat = kwargs.get("lat", None)
@@ -147,9 +147,9 @@ class SunCycles(object):
         cosHr = (np.cos( np.radians(zenith) ) - ( sinDecl * np.sin(np.radians(lat)) )) \
                 / ( cosDecl * np.cos( np.radians(lat) ) )
 
-        if cosHr > 1: # Sun doesnt rise on this loc on this date
+        if cosHr > 1: # Sun doesn't rise on this loc on this date
             return -1, -1
-        elif cosHr < -1: # Sun doesnt set on this location on this date
+        elif cosHr < -1: # Sun doesn't set on this location on this date
             return -1, -1
         elif stage == SunCycles.RISING: # Sunrise
             hr = 360 - np.degrees(np.arccos(cosHr))

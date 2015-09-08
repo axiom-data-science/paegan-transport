@@ -3,7 +3,10 @@ import multiprocessing
 import multiprocessing.pool
 
 import os
-import Queue
+try:
+    import Queue as queue
+except ImportError:
+    import queue
 import multiprocessing
 import multiprocessing.pool
 from datetime import datetime
@@ -73,7 +76,7 @@ class CachingModelController(BaseModelController):
 
             # Create workers for the particles.
             self.procs = [Consumer(self.tasks, self.results, self.n_run, self.nproc_lock, self.active, self.get_data, name="CachingForcer-%d" % i)
-                          for i in xrange(self.nproc - 1) ]
+                          for i in range(self.nproc - 1) ]
             logger.progress((5, 'Running model'))
             for w in self.procs:
                 w.start()
@@ -173,7 +176,7 @@ class CachingModelController(BaseModelController):
                 try:
                     # Returns a tuple of code, result
                     code, tempres = self.results.get(timeout=240)
-                except Queue.Empty:
+                except queue.Empty:
                     # Poll the active processes to make sure they are all alive and then continue with loop
                     if not self.data_controller_process.is_alive() and self.data_controller_process.exitcode != 0:
                         # Data controller is zombied, kill off other processes.

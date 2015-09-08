@@ -3,10 +3,11 @@ from paegan.transport.models.behaviors.capability import Capability
 import os
 import json
 
+
 class CapabilityTest(unittest.TestCase):
 
     def test_from_json(self):
-        data = open(os.path.normpath(os.path.join(os.path.dirname(__file__),"./resources/files/capability_behavior.json"))).read()
+        data = open(os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/capability_behavior.json"))).read()
         d = Capability(json=data)
 
         assert d.vss == 5.0
@@ -17,7 +18,7 @@ class CapabilityTest(unittest.TestCase):
         assert d.calculate_vss() == 5.0
 
     def test_from_dict(self):
-        data = open(os.path.normpath(os.path.join(os.path.dirname(__file__),"./resources/files/capability_behavior.json"))).read()
+        data = open(os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/capability_behavior.json"))).read()
         d = Capability(data=json.loads(data))
 
         assert d.vss == 5.0

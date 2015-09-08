@@ -4,23 +4,23 @@ from random import gauss, uniform
 class Capability(object):
 
     def __init__(self, **kwargs):
-        
+
         if 'json' in kwargs or 'data' in kwargs:
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
             self.vss = data.get('vss', None)
             self.swim_turning = data.get('swim_turning', None)
             self.non_swim_turning = data.get('nonswim_turning', None)
             self.variance = data.get('variance', 0)
-            # We initialize the calculated VSS here.  This is not 
-            # Recaculated on access.  It needs to be manually recaculated
+            # We initialize the calculated VSS here.  This is not
+            # Recalculated on access.  It needs to be manually recalculated
             # for each Capability.
             self.calculated_vss = self.calculate_vss(method=kwargs.get('method', None))
 

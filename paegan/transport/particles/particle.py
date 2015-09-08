@@ -1,3 +1,8 @@
+try:
+    from __builtin__ import unicode as str
+except ImportError:
+    pass
+
 import calendar
 from shapely.geometry import LineString
 
@@ -71,7 +76,7 @@ class Particle(object):
     def fill_status_gap(self, value=None):
 
         def fillvalue(v):
-            if unicode(value).lower() == u"last":
+            if str(value).lower() == u"last":
                 return v
             else:
                 return value
@@ -85,7 +90,7 @@ class Particle(object):
     def fill_environment_gap(self, value=None):
 
         def fillvalue(v):
-            if unicode(value).lower() == u"last":
+            if str(value).lower() == u"last":
                 return v
             else:
                 return value
@@ -213,7 +218,7 @@ class Particle(object):
             else:
                 raise
             return round(z,8)
-        except StandardError:
+        except Exception:
             raise KeyError("Could not return age of particle")
 
     def age(self, **kwargs):
@@ -239,7 +244,7 @@ class Particle(object):
         return
 
     def linestring(self):
-        return LineString(map(lambda x: list(x.point.coords)[0], self.locations))
+        return LineString([list(x.point.coords)[0] for x in self.locations])
 
     def normalized_locations(self, model_timesteps):
         inds = self.normalized_indexes(model_timesteps)
@@ -268,7 +273,7 @@ class Particle(object):
                     continue
                 else:
                     clean_locs.append(loc)
-            except StandardError:
+            except Exception:
                 clean_locs.append(loc)
 
         if len(clean_locs) == len(model_timesteps):
@@ -409,7 +414,7 @@ class LarvaParticle(Particle):
         super(LarvaParticle,self).fill_status_gap(value=value)
 
         def fillvalue(v):
-            if unicode(value).lower() == u"last":
+            if str(value).lower() == u"last":
                 return v
             else:
                 return value
@@ -424,7 +429,7 @@ class LarvaParticle(Particle):
         super(LarvaParticle,self).fill_environment_gap(value=value)
 
         def fillvalue(v):
-            if unicode(value).lower() == u"last":
+            if str(value).lower() == u"last":
                 return v
             else:
                 return value

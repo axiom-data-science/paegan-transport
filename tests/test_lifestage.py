@@ -26,16 +26,16 @@ class LifeStageTest(unittest.TestCase):
 
         self.particles = []
         # Create particles
-        for i in xrange(0, 3):
+        for i in range(0, 3):
             p = LarvaParticle()
             p.location = self.loc
             self.particles.append(p)
 
         # 48 timesteps at an hour each = 2 days of running
-        self.times = range(0, 172800, 3600)  # in seconds
+        self.times = list(range(0, 172800, 3600))  # in seconds
         self.temps = []
         self.salts = []
-        for w in xrange(0, 48):
+        for w in range(0, 48):
             self.temps.append(random.randint(20, 40))
             self.salts.append(random.randint(10, 30))
 
@@ -70,7 +70,7 @@ class LifeStageTest(unittest.TestCase):
         loc4d.time = eastern.localize(datetime(2013, 5, 13, 21,  6))
         assert lifestage.get_active_diel(loc4d) == lifestage.diel[3]
 
-        loc4d.time = eastern.localize(datetime(2013, 5, 14, 02, 45))
+        loc4d.time = eastern.localize(datetime(2013, 5, 14, 2, 45))
         assert lifestage.get_active_diel(loc4d) == lifestage.diel[3]
 
     def test_no_diel(self):
@@ -79,11 +79,11 @@ class LifeStageTest(unittest.TestCase):
         self.lifestage = LifeStage(data=data)
 
         for p in self.particles:
-            for i in xrange(0, len(self.times)):
+            for i in range(0, len(self.times)):
                 try:
                     modelTimestep = self.times[i+1] - self.times[i]
                     calculatedTime = self.times[i+1]
-                except StandardError:
+                except Exception:
                     modelTimestep = self.times[i] - self.times[i-1]
                     calculatedTime = self.times[i] + modelTimestep
 
@@ -114,11 +114,11 @@ class LifeStageTest(unittest.TestCase):
     def test_moving_particle_with_lifestage(self):
 
         for p in self.particles:
-            for i in xrange(0, len(self.times)):
+            for i in range(0, len(self.times)):
                 try:
                     modelTimestep = self.times[i+1] - self.times[i]
                     calculatedTime = self.times[i+1]
-                except StandardError:
+                except Exception:
                     modelTimestep = self.times[i] - self.times[i-1]
                     calculatedTime = self.times[i] + modelTimestep
 

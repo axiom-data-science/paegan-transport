@@ -84,7 +84,7 @@ class BaseForcer(object):
             self.dataset = CommonDataset.open(self.hydrodataset)
             if self.timevar is None:
                 self.timevar = self.dataset.gettimevar(self.common_variables.get("u"))
-        except StandardError:
+        except Exception:
             logger.warn("No source dataset: %s.  Particle exiting" % self.hydrodataset)
             raise
 
@@ -186,7 +186,7 @@ class BaseForcer(object):
             if self.salt_name is None:
                 salt = np.nan
 
-        except StandardError:
+        except Exception:
             logger.exception("Could not retrieve data.")
             raise
 
@@ -257,7 +257,7 @@ class BaseForcer(object):
             if self.salt_name is None:
                 salt = np.nan
 
-        except StandardError:
+        except Exception:
             logger.exception("Could not retrieve data.")
             raise
 
@@ -394,7 +394,7 @@ class BaseForcer(object):
         logger.info(textwrap.dedent('''Particle %i Stats:
                           Data read: %f seconds
                           Model forcing: %s seconds
-                          Boundary intersection: %f seconds''' % (self.particle.uid, tot_read_data, { s: '{:g} seconds'.format(f) for s, f in tot_model_time.items() }, tot_boundary_time)))
+                          Boundary intersection: %f seconds''' % (self.particle.uid, tot_read_data, { s: '{:g} seconds'.format(f) for s, f in list(tot_model_time.items()) }, tot_boundary_time)))
 
         return self.particle
 
@@ -426,7 +426,7 @@ class CachingForcer(BaseForcer):
                 self.has_read_lock.append(os.getpid())
             self.dataset = CommonDataset.open(self.hydrodataset)
             self.dataset.closenc()
-        except StandardError:
+        except Exception:
             logger.warn("No source dataset: %s.  Particle exiting" % self.hydrodataset)
             raise
         finally:
@@ -511,7 +511,7 @@ class CachingForcer(BaseForcer):
             else:
                 need = False
                 logger.debug("I DO NOT NEED data")
-        except StandardError:
+        except Exception:
             # If the time index doesnt even exist, we need
             need = True
             logger.debug("I NEED data (no time index exists in cache)")
@@ -566,7 +566,7 @@ class CachingForcer(BaseForcer):
                             logger.debug("Waiting for DataController to update cache...")
                             timer.sleep(2)
                             pass
-            except StandardError:
+            except Exception:
                 raise
             finally:
                 self.has_data_request_lock.value = -1
@@ -631,7 +631,7 @@ class CachingForcer(BaseForcer):
                                 logger.debug("Waiting for DataController to update cache with the NEXT time index")
                                 timer.sleep(2)
                                 pass
-            except StandardError:
+            except Exception:
                 logger.warn("Particle failed to request data correctly")
                 raise
             finally:

@@ -5,6 +5,7 @@ from paegan.transport.utils.asasuncycles import SunCycles
 import pytz
 from pytz import timezone
 
+
 class SunCycleTest(unittest.TestCase):
 
     def setUp(self):

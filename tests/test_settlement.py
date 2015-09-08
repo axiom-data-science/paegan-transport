@@ -6,15 +6,16 @@ import os
 from datetime import datetime
 import json
 
+
 class SettlementTest(unittest.TestCase):
 
     def setUp(self):
-        self.data = open(os.path.normpath(os.path.join(os.path.dirname(__file__),"./resources/files/settlement_behavior.json"))).read()
+        self.data = open(os.path.normpath(os.path.join(os.path.dirname(__file__), "./resources/files/settlement_behavior.json"))).read()
 
         temp_time = datetime.utcnow()
         self.start_time = datetime(temp_time.year, temp_time.month, temp_time.day, temp_time.hour)
         # 48 timesteps at an hour each = 2 days of running
-        self.times = range(0,172800,3600) # in seconds
+        self.times = list(range(0, 172800, 3600))  # in seconds
 
     def test_from_json(self):
         d = Settlement(json=self.data)
@@ -47,7 +48,6 @@ class SettlementTest(unittest.TestCase):
         assert particle.location.time == particle.locations[-2].time
         assert particle.settled
 
-
         settle = Settlement(json='{"upper": 100.0, "lower": 200.0, "type": "benthic"}')
         # Particle above the upper bound
         particle = LarvaParticle()
@@ -57,7 +57,6 @@ class SettlementTest(unittest.TestCase):
         # We should not have moved
         assert len(particle.locations) == 1
         assert not particle.settled
-
 
         settle = Settlement(json='{"upper": 100.0, "lower": 200.0, "type": "pelagic"}')
         # Particle above the upper bound
@@ -69,7 +68,6 @@ class SettlementTest(unittest.TestCase):
         assert len(particle.locations) == 1
         assert not particle.settled
 
-
         settle = Settlement(json='{"upper": 100.0, "lower": 200.0, "type": "pelagic"}')
         # Particle is between the upper and lower bounds
         particle = LarvaParticle()
@@ -78,4 +76,4 @@ class SettlementTest(unittest.TestCase):
         settle.attempt(particle, -400)
         # We should have settled, but not moved anywhere
         assert len(particle.locations) == 1
-        assert particle.settled    
+        assert particle.settled

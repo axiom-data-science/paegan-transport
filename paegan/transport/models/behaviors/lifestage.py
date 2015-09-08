@@ -21,10 +21,10 @@ class LifeStage(BaseModel):
             data = {}
             try:
                 data = json.loads(kwargs['json'])
-            except StandardError:
+            except Exception:
                 try:
                     data = kwargs.get('data')
-                except StandardError:
+                except Exception:
                     pass
 
             self.name = data.get('name',None)
@@ -113,7 +113,7 @@ class LifeStage(BaseModel):
         v = 0
         w = 0
 
-        behaviors_to_run = filter(None, [self.settlement] + [active_diel] + self.taxis)
+        behaviors_to_run = [_f for _f in [self.settlement] + [active_diel] + self.taxis if _f]
         # Sort these in the order you want them to be run.
 
         try:

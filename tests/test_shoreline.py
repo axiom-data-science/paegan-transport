@@ -57,7 +57,7 @@ class ShorelineFileTest(unittest.TestCase):
         s = self.make_shoreline(point=p, spatialbuffer=2)
         s.index(point=p2, spatialbuffer=2)
         s.index(point=p3, spatialbuffer=2)
-        print "Reindexing Time: " + str(time.time() - st)
+        print("Reindexing Time: " + str(time.time() - st))
 
     def test_large_shape_reindexing(self):
 
@@ -69,7 +69,7 @@ class ShorelineFileTest(unittest.TestCase):
         s = self.make_shoreline(file=shore_path, point=p, spatialbuffer=0.25)
         s.index(point=p2, spatialbuffer=0.25)
         s.index(point=p3, spatialbuffer=0.25)
-        print "Large Shoreline Reindexing Time: " + str(time.time() - st)
+        print("Large Shoreline Reindexing Time: " + str(time.time() - st))
 
     def test_multipart_shape_reindexing(self):
 
@@ -81,7 +81,7 @@ class ShorelineFileTest(unittest.TestCase):
         s = self.make_shoreline(file=shore_path, point=p, spatialbuffer=1)
         s.index(point=p2, spatialbuffer=0.25)
         s.index(point=p3, spatialbuffer=0.25)
-        print "Multipart Shoreline Reindexing Time: " + str(time.time() - st)
+        print("Multipart Shoreline Reindexing Time: " + str(time.time() - st))
 
     def test_intersection_speed(self):
 
@@ -93,7 +93,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         st = time.time()
         intersection = s.intersect(start_point=starting, end_point=ending)['point']
-        print "Intersection Time: " + str(time.time() - st)
+        print("Intersection Time: " + str(time.time() - st))
 
     def test_large_shape_intersection_speed(self):
 
@@ -106,7 +106,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         st = time.time()
         intersection = s.intersect(start_point=starting, end_point=ending)['point']
-        print "Large Shoreline Intersection Time: " + str(time.time() - st)
+        print("Large Shoreline Intersection Time: " + str(time.time() - st))
 
     def test_multipart_shape_intersection_speed(self):
 
@@ -119,7 +119,7 @@ class ShorelineFileTest(unittest.TestCase):
 
         st = time.time()
         intersection = s.intersect(start_point=starting, end_point=ending)['point']
-        print "Multipart Shoreline Intersection Time: " + str(time.time() - st)
+        print("Multipart Shoreline Intersection Time: " + str(time.time() - st))
 
     def test_water_start_land_end_intersection(self):
         # Starts in the water and ends on land
