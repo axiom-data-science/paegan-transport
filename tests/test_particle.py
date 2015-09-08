@@ -4,6 +4,7 @@ from paegan.location4d import Location4D
 from datetime import datetime, timedelta
 import pytz
 
+
 class ParticleTest(unittest.TestCase):
 
     def setUp(self):
@@ -20,7 +21,7 @@ class ParticleTest(unittest.TestCase):
 
     def test_particle_linestring_length(self):
         assert(len(list(self.p.linestring().coords))) == 3
-        self.p.location= Location4D(latitude=39, longitude=-75, depth=1)
+        self.p.location = Location4D(latitude=39, longitude=-75, depth=1)
         assert(len(list(self.p.linestring().coords))) == 4
 
     def test_particle_last_movement(self):
@@ -44,7 +45,7 @@ class ParticleTest(unittest.TestCase):
         p = Particle()
 
         dt = datetime(2012, 8, 15, 0, tzinfo=pytz.utc)
-        norms =[dt]
+        norms = [dt]
 
         last_real_movement = Location4D(latitude=38, longitude=-76, depth=0, time=dt)
 
@@ -52,13 +53,14 @@ class ParticleTest(unittest.TestCase):
         p.location = Location4D(latitude=101, longitude=-101, depth=0, time=dt)
         p.location = last_real_movement
 
-        for x in range(1,10):
+        for x in range(1, 10):
             norm = (dt + timedelta(hours=x)).replace(tzinfo=pytz.utc)
             norms.append(norm)
             p.location = Location4D(latitude=38 + x, longitude=-76 + x, depth=x, time=norm)
 
         locs = p.normalized_locations(norms)
         assert locs[0] == last_real_movement
+
 
 class LarvaParticleTest(unittest.TestCase):
 

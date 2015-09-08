@@ -50,7 +50,7 @@ class Consumer(multiprocessing.Process):
 
             try:
                 next_task = self.task_queue.get(True, 10)
-            except Queue.Empty:
+            except queue.Empty:
                 logger.info("No tasks left to complete, closing %s" % self.name)
                 break
             else:

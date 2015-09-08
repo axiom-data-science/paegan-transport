@@ -383,9 +383,8 @@ class ModelControllerTest(unittest.TestCase):
                                     use_bathymetry=False,
                                     use_shoreline=False)
 
-        with raises(BaseDataControllerError):
+        with self.assertRaises(BaseDataControllerError):
             model.setup_run("http://example.com/thisisnotadataset.nc")
-            model.run()
 
     def test_timechunk_greater_than_timestep(self):
         models = [self.transport]
@@ -426,8 +425,7 @@ class ModelControllerTest(unittest.TestCase):
                                     use_shoreline=False)
 
         with self.assertRaises(BaseDataControllerError):
-            model.setup_run("/data/lm/tests/pws_das_2014*.nc", cache_path=self.cache_path, remove_cache=False)
-            model.run(output_formats=self.output_formats, output_path=self.output_path)
+            model.setup_run("/data/lm/tests/pws_das_2014*.nc")
 
         # Start is OK but Ending is after available time
         model = BaseModelController(latitude=self.start_lat,
@@ -442,8 +440,7 @@ class ModelControllerTest(unittest.TestCase):
                                     use_shoreline=False)
 
         with self.assertRaises(BaseDataControllerError):
-            model.setup_run("/data/lm/tests/pws_das_2014*.nc", cache_path=self.cache_path, remove_cache=False)
-            model.run(output_formats=self.output_formats, output_path=self.output_path)
+            model.setup_run("/data/lm/tests/pws_das_2014*.nc")
 
     def test_no_dap_data_for_requested_run(self):
         models = [self.transport]
@@ -460,8 +457,7 @@ class ModelControllerTest(unittest.TestCase):
                                        use_shoreline=False)
 
         with self.assertRaises(BaseDataControllerError):
-            model.setup_run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", cache_path=self.cache_path, remove_cache=False)
-            model.run(output_formats=self.output_formats, output_path=self.output_path)
+            model.setup_run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc")
 
         # Start is OK but Ending is after available time
         model = CachingModelController(latitude=self.start_lat,
@@ -476,8 +472,7 @@ class ModelControllerTest(unittest.TestCase):
                                        use_shoreline=False)
 
         with self.assertRaises(BaseDataControllerError):
-            model.setup_run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc", cache_path=self.cache_path, remove_cache=False)
-            model.run(output_formats=self.output_formats, output_path=self.output_path)
+            model.setup_run("http://thredds.axiomalaska.com/thredds/dodsC/PWS_L2_FCST.nc")
 
     def test_run_10m_shoreline(self):
         models = [self.transport]

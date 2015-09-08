@@ -38,12 +38,12 @@ class Shoreline(object):
         if 'path' in kwargs and kwargs['path'] is not None:
             parsed = urlparse(kwargs['path'])
             if parsed.scheme.startswith('http') and parsed.netloc:
-                return super(Shoreline, cls).__new__(ShorelineWFS, **kwargs)
+                return object.__new__(ShorelineWFS)
 
         if 'wfs_server' in kwargs:
-            return super(Shoreline, cls).__new__(ShorelineWFS, **kwargs)
+            return object.__new__(ShorelineWFS)
 
-        return super(Shoreline, cls).__new__(ShorelineFile, **kwargs)
+        return object.__new__(ShorelineFile)
 
     def __init__(self, **kwargs):
         self._spatialbuffer = kwargs.pop("spatialbuffer", 1)
@@ -442,10 +442,10 @@ class ShorelineWFS(Shoreline):
                 #  'Abtract'            : None,
                 #  'LatLongBoundingBox' : {'maxx':1, 'maxy':5 ... }}
                 #
-                d = {sube.tag[28:]:sube.text or sube.attrib or None for sube in e.getchildren()}
+                d = {sube.tag[28:] : sube.text or sube.attrib or None for sube in e.getchildren()}
 
                 # transform LatLongBoundingBox into a Shapely box
-                llbb = {k:round(float(v), 4) for k,v in d['LatLongBoundingBox'].items()}
+                llbb = {k : round(float(v), 4) for k, v in d['LatLongBoundingBox'].items()}
                 d['LatLongBoundingBox'] = box(llbb['minx'], llbb['miny'], llbb['maxx'], llbb['maxy'])
                 return d
 

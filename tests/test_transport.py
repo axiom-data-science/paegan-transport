@@ -1,11 +1,11 @@
 import unittest
 import random
-import numpy
 from datetime import datetime, timedelta
 from paegan.transport.models.transport import Transport
 from paegan.transport.particles.particle import Particle
 from paegan.location4d import Location4D
 from paegan.utils.asarandom import AsaRandom
+
 
 class TransportTest(unittest.TestCase):
 
@@ -19,18 +19,18 @@ class TransportTest(unittest.TestCase):
 
         # Generate time,u,v,z as randoms
         # 48 timesteps at an hour each = 2 days of running
-        self.times = list(range(0,172800,3600)) # in seconds
+        self.times = list(range(0, 172800, 3600))  # in seconds
         self.u = []
         self.v = []
         self.z = []
-        for w in range(0,48):
-            self.z.append(random.gauss(0,0.0001)) # gaussian in m/s
-            self.u.append(abs(AsaRandom.random())) # random function in m/s
-            self.v.append(abs(AsaRandom.random())) # random function in m/s
+        for w in range(0, 48):
+            self.z.append(random.gauss(0, 0.0001))  # gaussian in m/s
+            self.u.append(abs(AsaRandom.random()))  # random function in m/s
+            self.v.append(abs(AsaRandom.random()))  # random function in m/s
 
         self.particles = []
         # Create particles
-        for i in range(0,3):
+        for i in range(0, 3):
             p = Particle()
             p.location = self.loc
             self.particles.append(p)
