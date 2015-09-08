@@ -1,6 +1,6 @@
-Fiona>=0.8
+Fiona>=1.1.6
 requests>=1.2.3
-paegan>=1.1.2
+paegan>=1.1.4
 redis
 geojson
 pytables # for export
