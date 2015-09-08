@@ -54,7 +54,7 @@ class ResultsPyTable(object):
 
     def write(self, data):
         record = self._table.row
-        for k, v in data.iteritems():
+        for k, v in data.items():
             try:
                 record[k] = v
             except Exception:
@@ -111,7 +111,7 @@ class H5TracklineWithPoints(Export):
                 os.makedirs(folder)
             filepath = os.path.join(folder, "full_trackline.geojson")
             with open(filepath, "wb") as r:
-                r.write(geojson.dumps(fc))
+                r.write(geojson.dumps(fc).encode('utf-8'))
 
 
 class H5Trackline(Export):
@@ -132,7 +132,7 @@ class H5Trackline(Export):
                 os.makedirs(folder)
             filepath = os.path.join(folder, "simple_trackline.geojson")
             with open(filepath, "wb") as r:
-                r.write(geojson.dumps(feat))
+                r.write(geojson.dumps(feat).encode('utf-8'))
 
 
 class H5ParticleTracklines(Export):
@@ -146,8 +146,8 @@ class H5ParticleTracklines(Export):
             for puid in particles:
                 points = [ (x["time"], (x['longitude'], x['latitude'])) for x in table.where("""particle == %s""" % puid) if x["latitude"] and x["longitude"] ]
 
-                geo_ls = geojson.LineString(map(lambda x: x[1], points))
-                times  = map(lambda x: datetime.utcfromtimestamp(x[0]).replace(tzinfo=pytz.utc).isoformat(), points)
+                geo_ls = geojson.LineString( [ x[1] for x in points ] )
+                times  = [ datetime.utcfromtimestamp(x[0]).replace(tzinfo=pytz.utc).isoformat() for x in points ]
 
                 feat = geojson.Feature(geometry=geo_ls, id=puid, properties={ "particle" : puid, "times" : times })
                 features.append(feat)
@@ -158,7 +158,7 @@ class H5ParticleTracklines(Export):
                 os.makedirs(folder)
             filepath = os.path.join(folder, "particle_tracklines.geojson")
             with open(filepath, "wb") as r:
-                r.write(geojson.dumps(fc))
+                r.write(geojson.dumps(fc).encode('utf-8'))
 
 
 class H5ParticleMultiPoint(Export):
@@ -172,8 +172,8 @@ class H5ParticleMultiPoint(Export):
             for puid in particles:
                 points = [ (x["time"], (x['longitude'], x['latitude'])) for x in table.where("""particle == %s""" % puid) if x["latitude"] and x["longitude"] ]
 
-                geo_mp = geojson.MultiPoint(map(lambda x: x[1], points))
-                times  = map(lambda x: x[0], points)
+                geo_mp = geojson.MultiPoint( [ x[1] for x in points ] )
+                times  = [ x[0] for x in points ]
 
                 feat = geojson.Feature(geometry=geo_mp, id=puid, properties={ "particle" : puid, "time" : times })
                 features.append(feat)
@@ -184,7 +184,7 @@ class H5ParticleMultiPoint(Export):
                 os.makedirs(folder)
             filepath = os.path.join(folder, "particle_multipoint.geojson")
             with open(filepath, "wb") as r:
-                r.write(geojson.dumps(fc))
+                r.write(geojson.dumps(fc).encode('utf-8'))
 
 
 class H5GDALShapefile(Export):
@@ -220,7 +220,7 @@ class H5GDALShapefile(Export):
                 for r in table.iterrows():
                     shape.write({'geometry': mapping(Point(r["longitude"], r["latitude"])),
                                  'properties': OrderedDict([('particle', r["particle"]),
-                                                            ('date', unicode(datetime.utcfromtimestamp(r["time"]).isoformat())),
+                                                            ('date', str(datetime.utcfromtimestamp(r["time"]).isoformat())),
                                                             ('latitude', float(r["latitude"])),
                                                             ('longitude', float(r["longitude"])),
                                                             ('depth', float(r["depth"])),
@@ -229,9 +229,9 @@ class H5GDALShapefile(Export):
                                                             ('u_vector', float(r["u_vector"])),
                                                             ('v_vector', float(r["v_vector"])),
                                                             ('w_vector', float(r["w_vector"])),
-                                                            ('settled', unicode(r["settled"])),
-                                                            ('dead', unicode(r["dead"])),
-                                                            ('halted', unicode(r["halted"])),
+                                                            ('settled', str(r["settled"])),
+                                                            ('dead', str(r["dead"])),
+                                                            ('halted', str(r["halted"])),
                                                             ('age', float(r["age"])),
                                                             ('lifestage' , int(r["lifestage"])),
                                                             ('progress' , float(r["progress"]))])})

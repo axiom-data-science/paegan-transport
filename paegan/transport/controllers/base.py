@@ -19,7 +19,7 @@ from paegan.location4d import Location4D
 from paegan.transport.utils.asatransport import AsaTransport
 from paegan.transport.shoreline import Shoreline
 from paegan.cdm.dataset import CommonDataset
-from paegan.transport.exceptions import ModelError, BaseDataControllerError
+from paegan.transport.exceptions import BaseDataControllerError
 from paegan.transport.forcers import BaseForcer
 from paegan.logger import logger
 import paegan.transport.export as ex
@@ -326,13 +326,13 @@ class BaseModelController(object):
         logger.progress((3, "Initializing and caching hydro model's grid %s" % self.hydrodataset))
         try:
             ds = CommonDataset.open(self.hydrodataset)
+            # Query the dataset for common variable names
+            # and the time variable.
+            logger.debug("Retrieving variable information from dataset")
+            self.common_variables = self.get_common_variables_from_dataset(ds)
         except Exception:
             logger.exception("Failed to access dataset %s" % self.hydrodataset)
             raise BaseDataControllerError("Inaccessible Dataset: %s" % self.hydrodataset)
-        # Query the dataset for common variable names
-        # and the time variable.
-        logger.debug("Retrieving variable information from dataset")
-        self.common_variables = self.get_common_variables_from_dataset(ds)
 
         self.timevar = None
         try:
@@ -342,12 +342,13 @@ class BaseModelController(object):
             assert self.common_variables.get("y") in ds._current_variables
 
             self.timevar = ds.gettimevar(self.common_variables.get("u"))
+            model_start = self.timevar.get_dates()[0]
+            model_end = self.timevar.get_dates()[-1]
         except AssertionError:
             logger.exception("Could not locate variables needed to run model: %s" % str(self.common_variables))
             raise BaseDataControllerError("A required data variable was not found in %s" % self.hydrodataset)
-
-        model_start = self.timevar.get_dates()[0]
-        model_end   = self.timevar.get_dates()[-1]
+        finally:
+            ds.closenc()
 
         try:
             assert self.start > model_start
@@ -360,8 +361,6 @@ class BaseModelController(object):
             assert self.datetimes[-1] < model_end
         except AssertionError:
             raise BaseDataControllerError("End time for model (%s) is not available in source dataset (%s/%s)" % (self.datetimes[-1], model_start, model_end))
-
-        ds.closenc()
 
     def run(self, **kwargs):
 

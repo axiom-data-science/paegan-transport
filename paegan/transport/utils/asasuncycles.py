@@ -64,7 +64,7 @@ class SunCycles(object):
         # We ALWAYS want to return the sunrise/sunset for the day that was passed
         # in (with timezone accounted for), regardless of what the UTC day is.  Modify
         # the UTC julian day here if need be.
-        comp = cmp(utc_jd, local_jd)
+        comp = (utc_jd > local_jd) - (utc_jd < local_jd)
         if comp == 1:
             utc_jd -= 1
         elif comp == -1:
