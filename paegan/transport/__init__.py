@@ -11,4 +11,4 @@ try:
 except:
     pass
 
-__version__ = '1.0.3-dev'
+__version__ = '1.0.3'
